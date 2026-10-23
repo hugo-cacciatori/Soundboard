@@ -1,0 +1,79 @@
+<resources>
+    <string name="app_name">Soundboard</string>
+
+    <!-- Title card (launch) -->
+    <string name="title_card_tagline">Your voice, one tap away.</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome">Make a soundboard with your own voice.</string>
+    <string name="onboarding_create_first">Create your first button</string>
+
+    <!-- Main -->
+    <string name="main_add_button">New button</string>
+    <string name="main_empty">No buttons yet. Tap “New button” above to create one.</string>
+    <string name="main_hint">Tap to play · Hold to edit</string>
+    <string name="main_hint_dismiss">Dismiss tip</string>
+    <string name="button_play_label">Play</string>
+    <string name="button_edit_label">Edit</string>
+
+    <!-- Editor -->
+    <string name="editor_title_new">New button</string>
+    <string name="editor_title_edit">Edit button</string>
+    <string name="editor_back">Back</string>
+    <string name="editor_name_label">Name</string>
+    <string name="editor_name_counter">%1$d/%2$d</string>
+    <string name="editor_color_label">Color</string>
+    <string name="editor_color_description">Button color: %1$s. Tap to change.</string>
+    <string name="editor_sound_label">Sound</string>
+    <string name="editor_fx_label">Effect</string>
+    <string name="editor_fx_description">Sound effect: %1$s. Tap to change.</string>
+    <string name="editor_save">Save</string>
+    <string name="editor_delete">Delete button</string>
+    <string name="editor_save_failed">Couldn\'t save the button. Please try again.</string>
+    <string name="editor_skip_tips">Skip tips</string>
+
+    <!-- Tutorial hints -->
+    <string name="hint_name">Give your button a name.</string>
+    <string name="hint_color">Tap the square to pick a color.</string>
+    <string name="hint_record">Tap the mic and say something (5 seconds max).</string>
+
+    <!-- Recorder -->
+    <string name="record_start">Record</string>
+    <string name="record_stop">Stop recording</string>
+    <string name="record_again">Record again</string>
+    <string name="record_play">Play recording</string>
+    <string name="record_status_idle">Tap the mic to record</string>
+    <string name="record_status_recording">Recording… %1$d s left</string>
+    <string name="record_status_processing">Processing…</string>
+    <string name="record_status_ready">Sound ready. Tap the mic to re-record.</string>
+    <string name="record_error_too_quiet">That was too quiet. Try again, closer to the microphone.</string>
+    <string name="record_error_failed">Couldn\'t use the microphone. Please try again.</string>
+    <string name="trim_selection">%1$.1f s of %2$.1f s · drag the edges to trim</string>
+    <string name="trim_description">Sound waveform. Selected from %1$.1f s to %2$.1f s. Drag to trim.</string>
+    <string name="permission_explanation">Soundboard needs the microphone to record your voice. Recordings never leave your phone.</string>
+    <string name="permission_open_settings">Open settings</string>
+
+    <!-- Delete dialog -->
+    <string name="delete_title">Delete this button?</string>
+    <string name="delete_message">Its sound will be removed from your phone.</string>
+    <string name="delete_confirm">Delete</string>
+    <string name="common_cancel">Cancel</string>
+
+    <!-- Palette color names (used for accessibility) -->
+    <string name="color_red">Red</string>
+    <string name="color_orange">Orange</string>
+    <string name="color_amber">Amber</string>
+    <string name="color_lime">Lime</string>
+    <string name="color_green">Green</string>
+    <string name="color_teal">Teal</string>
+    <string name="color_cyan">Cyan</string>
+    <string name="color_blue">Blue</string>
+    <string name="color_indigo">Indigo</string>
+    <string name="color_violet">Violet</string>
+    <string name="color_pink">Pink</string>
+    <string name="color_rose">Rose</string>
+
+    <!-- Effect names -->
+    <string name="fx_none">None</string>
+    <string name="fx_mouseyfier">Mouseyfier</string>
+</resources>

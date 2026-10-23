@@ -1,0 +1,10 @@
+<!-- "No effect": a plain waveform (your voice as recorded). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M3,10h2v4h-2z M7,6h2v12h-2z M11,3h2v18h-2z M15,7h2v10h-2z M19,10h2v4h-2z" />
+</vector>

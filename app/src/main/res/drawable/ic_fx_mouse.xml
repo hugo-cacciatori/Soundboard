@@ -1,0 +1,11 @@
+<!-- Mouseyfier: front view of a mouse head (round ears, pointed snout, eyes and nose cut out). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Head and ears are drawn clockwise, eyes and nose counter-clockwise so they become holes. -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,21C9,21 5,16 5,12.5C5,9.5 8,8 12,8C16,8 19,9.5 19,12.5C19,16 15,21 12,21Z M2.5,6.5a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0Z M14.5,6.5a3.5,3.5 0,1 1,7 0a3.5,3.5 0,1 1,-7 0Z M8.3,13a1.2,1.2 0,1 0,2.4 0a1.2,1.2 0,1 0,-2.4 0Z M13.3,13a1.2,1.2 0,1 0,2.4 0a1.2,1.2 0,1 0,-2.4 0Z M10.9,18.2a1.1,1.1 0,1 0,2.2 0a1.1,1.1 0,1 0,-2.2 0Z" />
+</vector>
