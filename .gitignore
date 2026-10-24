@@ -26,3 +26,7 @@ CLAUDE.md
 CLAUDE.local.md
 .claude/
 .git-docs/
+docs/
+
+# Local releases
+dist/
