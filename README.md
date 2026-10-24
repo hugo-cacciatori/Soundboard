@@ -13,6 +13,16 @@ An Android app that turns your voice into a personal soundboard. Create a button
 - **Effects.** Give a button an effect to change how it sounds. The first one is the **Mouseyfier**, which turns your voice into a tiny cartoon mouse 🐭.
 - **Colors.** Pick from a palette made to look good together and keep the button labels readable.
 
+## Install
+
+Soundboard needs a phone running **Android 7.0 or later**. There is no release yet; when there is, the APK will be on the [Releases page](https://github.com/hugo-cacciatori/Soundboard/releases): download it on your phone, open it, and allow the install when Android asks.
+
+## How to use it
+
+1. Open the app and tap **Create your first button**.
+2. Type a name, tap the colored square to pick a color, then tap record and say something (up to 5 seconds). Play it back, record again if you like, and save.
+3. Tap the button to play it. Long-press it to edit it. Use **+** above the grid to add more.
+
 ## Privacy
 
 Everything stays on your phone. The app has no internet permission, no analytics and no ads. Your recordings are stored in the app's private storage and are deleted when you delete the button (or uninstall the app).
@@ -21,7 +31,7 @@ The microphone permission is only requested the first time you tap record.
 
 ## Building
 
-Requirements: Android Studio (recent version) and an Android phone with USB or wireless debugging enabled.
+Requirements: the Android SDK, JDK 17 or later, and an Android phone (7.0 or later) with USB or wireless debugging enabled.
 
 ```powershell
 .\gradlew.bat installDebug        # build and install on the connected phone
