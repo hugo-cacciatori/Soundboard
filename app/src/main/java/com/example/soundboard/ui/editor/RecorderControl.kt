@@ -98,7 +98,8 @@ private fun RecordButton(recording: RecordingState, hasSound: Boolean, onClick: 
         label = "record-level",
     )
 
-    Box(modifier = Modifier.size(108.dp), contentAlignment = Alignment.Center) {
+    // The same footprint as the play button (owner: record is never bigger than play).
+    Box(modifier = Modifier.size(CONTROL_SIZE), contentAlignment = Alignment.Center) {
         // Progress ring: the full circle is the 5 s budget.
         val ringModifier = Modifier.fillMaxSize()
         when (recording) {
@@ -107,19 +108,19 @@ private fun RecordButton(recording: RecordingState, hasSound: Boolean, onClick: 
                 modifier = ringModifier,
                 color = MaterialTheme.colorScheme.error,
                 trackColor = MaterialTheme.colorScheme.outlineVariant,
-                strokeWidth = 5.dp,
+                strokeWidth = 4.dp,
                 strokeCap = StrokeCap.Round,
             )
             RecordingState.Processing -> CircularProgressIndicator(
                 modifier = ringModifier,
                 color = MaterialTheme.colorScheme.error,
-                strokeWidth = 5.dp,
+                strokeWidth = 4.dp,
             )
             RecordingState.Idle -> CircularProgressIndicator(
                 progress = { 0f },
                 modifier = ringModifier,
                 trackColor = MaterialTheme.colorScheme.outlineVariant,
-                strokeWidth = 5.dp,
+                strokeWidth = 4.dp,
             )
         }
         Key(
@@ -128,27 +129,27 @@ private fun RecordButton(recording: RecordingState, hasSound: Boolean, onClick: 
             onClick = onClick,
             enabled = !busy,
             shape = CircleShape,
-            lipHeight = 5.dp,
+            lipHeight = 4.dp,
             modifier = Modifier
                 .graphicsLayer {
                     val pulse = 1f + PULSE_SCALE * level.coerceIn(0f, 1f)
                     scaleX = pulse
                     scaleY = pulse
                 }
-                .size(width = 80.dp, height = 85.dp)
+                .size(width = 50.dp, height = 54.dp)
                 .semantics { contentDescription = label },
         ) {
             if (isRecording) {
                 Box(
                     Modifier
-                        .size(26.dp)
-                        .background(MaterialTheme.colorScheme.onError, RoundedCornerShape(6.dp)),
+                        .size(18.dp)
+                        .background(MaterialTheme.colorScheme.onError, RoundedCornerShape(4.dp)),
                 )
             } else {
                 Icon(
                     painter = painterResource(R.drawable.ic_mic),
                     contentDescription = null,
-                    modifier = Modifier.size(36.dp),
+                    modifier = Modifier.size(26.dp),
                 )
             }
         }
@@ -159,7 +160,7 @@ private fun RecordButton(recording: RecordingState, hasSound: Boolean, onClick: 
 private fun PlayButton(onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(56.dp)
+            .size(CONTROL_SIZE)
             .clip(CircleShape)
             .border(2.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
             .clickable(role = Role.Button, onClick = onClick),
@@ -169,13 +170,16 @@ private fun PlayButton(onClick: () -> Unit) {
             painter = painterResource(R.drawable.ic_play),
             contentDescription = stringResource(R.string.record_play),
             tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(26.dp),
+            modifier = Modifier.size(28.dp),
         )
     }
 }
 
-/** How much a full-scale voice grows the record key. */
-private const val PULSE_SCALE = 0.12f
+/** Record and play take the same room. */
+private val CONTROL_SIZE = 64.dp
+
+/** How much a full-scale voice grows the record key: at most to the inside of its ring. */
+private const val PULSE_SCALE = 0.1f
 
 private const val LEVEL_SMOOTHING_MILLIS = 90
 
