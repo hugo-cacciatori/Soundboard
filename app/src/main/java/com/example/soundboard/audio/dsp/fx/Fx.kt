@@ -28,6 +28,9 @@ enum class Fx(val id: String) {
     /** Robot voice: the whole clip flattened onto the nearest note, then a metallic comb (see [RobotVoice]). */
     Robot("robot"),
 
+    /** Orc voice: fat and dumb, a bigger body and a slow, gruff delivery (see [OrcVoice]). */
+    Orc("orc"),
+
     /**
      * The sample sung as a melody the user arranges. The only effect that needs more than its id:
      * the button's [com.example.soundboard.audio.dsp.melody.Melody] (see [MelodyVoice]). Without
@@ -52,6 +55,13 @@ enum class Fx(val id: String) {
             ringMix = ROBOT_RING_MIX,
             holdSamples = ROBOT_HOLD_SAMPLES,
         )
+        Orc -> OrcVoice(
+            body = ORC_BODY,
+            drawl = ORC_DRAWL,
+            pitchDropSemitones = ORC_PITCH_DROP_SEMITONES,
+            lowPassHz = ORC_LOW_PASS_HZ,
+            growl = ORC_GROWL,
+        )
         Melody -> melody?.takeUnless { it.isEmpty }?.let { MelodyVoice(it) }
     }
 
@@ -65,6 +75,15 @@ enum class Fx(val id: String) {
         private const val ROBOT_COMB_FEEDBACK = 0.6
         private const val ROBOT_RING_MIX = 0.35
         private const val ROBOT_HOLD_SAMPLES = 3
+
+        // The Orc, tuned by ear on the phone (see OrcVoice): playback speed for the bigger body (0.8 is
+        // about 4 semitones down, formants included), length of the drawl, further pitch drop of the
+        // voiced parts, the low-pass that dulls it, and the share of saturated growl (0 = off).
+        private const val ORC_BODY = 0.8
+        private const val ORC_DRAWL = 1.12
+        private const val ORC_PITCH_DROP_SEMITONES = 4.0
+        private const val ORC_LOW_PASS_HZ = 3_200.0
+        private const val ORC_GROWL = 0.4
 
         /** Unknown ids (e.g. from a newer app version) fall back to [None]. */
         fun byId(id: String?): Fx = entries.firstOrNull { it.id == id } ?: None

@@ -189,20 +189,5 @@ class MelodyVoice(private val melody: Melody) : Effect {
                 if (fadeOut) x[x.size - 1 - k] *= g
             }
         }
-
-        /**
-         * Pitch shift by playing [x] [ratio] times faster (linear interpolation), which also changes
-         * its length and speed; the caller time-stretches it back. Only for sounds without a detectable pitch.
-         */
-        private fun resample(x: FloatArray, ratio: Double): FloatArray {
-            if (x.size < 2) return x.copyOf()
-            val length = ((x.size - 1) / ratio).toInt() + 1
-            return FloatArray(length) { i ->
-                val position = i * ratio
-                val j = position.toInt().coerceAtMost(x.size - 2)
-                val frac = (position - j).toFloat()
-                x[j] + (x[j + 1] - x[j]) * frac
-            }
-        }
     }
 }
