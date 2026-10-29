@@ -24,6 +24,9 @@ enum class Fx(val id: String) {
      * thin out the low end.
      */
     Mouseyfier("mouseyfier"),
+
+    /** Robot voice: the whole clip flattened onto the nearest note, then a metallic comb (see [RobotVoice]). */
+    Robot("robot"),
     ;
 
     /** The processing for this effect, or null for [None]. Future "intensity" settings go here as parameters. */
@@ -34,12 +37,16 @@ enum class Fx(val id: String) {
             TimeStretch(factor = 2.0),
             HighPass(cutoffHz = MOUSEY_HIGH_PASS_HZ),
         )
+        Robot -> RobotVoice(combFeedback = ROBOT_COMB_FEEDBACK)
     }
 
     companion object {
         val DEFAULT = None
 
         private const val MOUSEY_HIGH_PASS_HZ = 150.0
+
+        /** Strength of the Robot's metallic buzz; tuned by ear on the phone (0 turns it off). */
+        private const val ROBOT_COMB_FEEDBACK = 0.4
 
         /** Unknown ids (e.g. from a newer app version) fall back to [None]. */
         fun byId(id: String?): Fx = entries.firstOrNull { it.id == id } ?: None

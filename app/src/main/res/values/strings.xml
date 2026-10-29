@@ -76,4 +76,5 @@
     <!-- Effect names -->
     <string name="fx_none">None</string>
     <string name="fx_mouseyfier">Mouseyfier</string>
+    <string name="fx_robot">Robot</string>
 </resources>

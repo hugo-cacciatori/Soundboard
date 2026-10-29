@@ -40,12 +40,14 @@ private const val FX_PER_ROW = 3
 fun fxName(fx: Fx): Int = when (fx) {
     Fx.None -> R.string.fx_none
     Fx.Mouseyfier -> R.string.fx_mouseyfier
+    Fx.Robot -> R.string.fx_robot
 }
 
 @DrawableRes
 fun fxIcon(fx: Fx): Int = when (fx) {
     Fx.None -> R.drawable.ic_fx_none
     Fx.Mouseyfier -> R.drawable.ic_fx_mouse
+    Fx.Robot -> R.drawable.ic_fx_robot
 }
 
 /** The square that shows the current effect's icon and opens the picker when tapped. */
