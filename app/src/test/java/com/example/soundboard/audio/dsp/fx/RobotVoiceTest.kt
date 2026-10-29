@@ -78,6 +78,19 @@ class RobotVoiceTest {
     }
 
     @Test
+    fun fullRoboticGrainKeepsTheNote() {
+        // Comb, ring modulator and sample-and-hold at the app's settings, or stronger.
+        val out = RobotVoice(combFeedback = 0.6, ringMix = 0.35, holdSamples = 3).process(glide(200.0, 240.0), rate)
+        assertFlatAt(out, 220.0)
+    }
+
+    @Test
+    fun sampleAndHoldRepeatsSamples() {
+        val out = RobotVoice(combFeedback = 0.0, holdSamples = 3).process(glide(200.0, 240.0), rate)
+        for (i in 1 until 3000) if (i % 3 != 0) assertEquals(out[i - 1], out[i], 0f)
+    }
+
+    @Test
     fun durationIsUnchanged() {
         val input = glide(150.0, 300.0, seconds = 1.37)
         assertEquals(input.size, RobotVoice(combFeedback = 0.4).process(input, rate).size)

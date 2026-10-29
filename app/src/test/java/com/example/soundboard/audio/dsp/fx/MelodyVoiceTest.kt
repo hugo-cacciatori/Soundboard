@@ -154,6 +154,40 @@ class MelodyVoiceTest {
         assertEquals(329.63, pitchNear(out, rate * 13 / 10, 329.63), 329.63 * 0.01)
     }
 
+    /** Voice-like tone (10 harmonics at 1/k) whose pitch follows [hzAt] (seconds -> Hz). */
+    private fun singing(seconds: Double = 1.5, hzAt: (Double) -> Double): FloatArray {
+        var phase = 0.0
+        return FloatArray((rate * seconds).toInt()) { i ->
+            phase += 2 * PI * hzAt(i.toDouble() / rate) / rate
+            var s = 0.0
+            for (k in 1..10) s += sin(k * phase) / k
+            (0.25 * s).toFloat()
+        }
+    }
+
+    @Test
+    fun aSlowGlideInTheVoiceComesOutOnTheNote() {
+        // The voice slides from 200 to 240 Hz over 1.5 s; the A3 note must not follow the slide.
+        val sound = singing { t -> 200.0 + 40.0 * t / 1.5 }
+        val out = MelodyVoice(Melody().withNote(0, 57, 12)).process(sound, rate)
+        var at = rate / 5
+        while (at < out.size - rate / 5 - 4096) {
+            assertEquals("at $at", 220.0, pitchNear(out, at, 220.0), 220.0 * 0.015)
+            at += rate / 10
+        }
+    }
+
+    @Test
+    fun theVoicesVibratoIsKeptSoTheNoteIsNotRobotic() {
+        // 5.5 Hz vibrato of +-3 % around 220 Hz: it must still wobble around the A3 note, not be flattened.
+        val sound = singing { t -> 220.0 * (1 + 0.03 * sin(2 * PI * 5.5 * t)) }
+        val out = MelodyVoice(Melody().withNote(0, 57, 12)).process(sound, rate)
+        val pitches = (0 until 40).map { b -> pitchNear(out, rate / 5 + b * rate / 40, 220.0, length = 1024) }
+        val spread = (pitches.max() - pitches.min()) / 220.0
+        assertTrue("spread $spread", spread > 0.03)
+        assertEquals(220.0, pitches.average(), 220.0 * 0.01)
+    }
+
     @Test
     fun consecutiveShortNotesAllSoundWithSilenceBeforeTheVoice() {
         // Each 1-step note (125 ms) must play the voice, not the 300 ms of silence before it.

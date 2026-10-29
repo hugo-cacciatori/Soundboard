@@ -47,7 +47,11 @@ enum class Fx(val id: String) {
             TimeStretch(factor = 2.0),
             HighPass(cutoffHz = MOUSEY_HIGH_PASS_HZ),
         )
-        Robot -> RobotVoice(combFeedback = ROBOT_COMB_FEEDBACK)
+        Robot -> RobotVoice(
+            combFeedback = ROBOT_COMB_FEEDBACK,
+            ringMix = ROBOT_RING_MIX,
+            holdSamples = ROBOT_HOLD_SAMPLES,
+        )
         Melody -> melody?.takeUnless { it.isEmpty }?.let { MelodyVoice(it) }
     }
 
@@ -56,8 +60,11 @@ enum class Fx(val id: String) {
 
         private const val MOUSEY_HIGH_PASS_HZ = 150.0
 
-        /** Strength of the Robot's metallic buzz; tuned by ear on the phone (0 turns it off). */
-        private const val ROBOT_COMB_FEEDBACK = 0.4
+        // The Robot's grain, tuned by ear on the phone (see RobotVoice): metallic resonance (0 = off),
+        // share of in-tune ring-modulator buzz (0 = off), and digital grit (1 = off; 3 holds at 16 kHz).
+        private const val ROBOT_COMB_FEEDBACK = 0.6
+        private const val ROBOT_RING_MIX = 0.35
+        private const val ROBOT_HOLD_SAMPLES = 3
 
         /** Unknown ids (e.g. from a newer app version) fall back to [None]. */
         fun byId(id: String?): Fx = entries.firstOrNull { it.id == id } ?: None

@@ -2,6 +2,7 @@ package com.example.soundboard.audio.dsp.fx
 
 import com.example.soundboard.audio.dsp.melody.Melody
 import kotlin.math.abs
+import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -13,9 +14,12 @@ import kotlin.math.roundToInt
  * is cut when the note is shorter, and time-stretched (same pitch) when the note is longer.
  *
  * The "sound" is the voiced part of the take: the silence a take usually has before and after the
- * voice is trimmed, otherwise short notes would play only silence. Its pitch is moved like Robot
- * does ([PitchFlattener]), so it is still the user's voice, now on the note. A sound with no
- * detectable pitch is resampled instead, as if it were at C4.
+ * voice is trimmed, otherwise short notes would play only silence. Its pitch is moved with
+ * [PitchFlattener], so it is still the user's voice, now on the note. Unlike Robot, the pitch is
+ * not held dead constant (that is what sounds robotic): the voice's fast natural movement (jitter,
+ * vibrato) is kept around the note, and only its slow drift and speech glides are removed, so the
+ * note is in tune on average. A longer note repeats pitch periods, which keeps the voice natural.
+ * A sound with no detectable pitch is resampled and time-stretched instead, as if it were at C4.
  *
  * The result runs from the first note to the end of the last one: leading and trailing empty
  * steps add no silence; rests between notes do.
@@ -32,19 +36,32 @@ class MelodyVoice(private val melody: Melody) : Effect {
         val track = PitchTracker.track(sound, sampleRate)
         val pitched = track.medianVoiced() > 0f
 
+        val movement = if (pitched) naturalMovement(track, sampleRate) else FloatArray(0)
+
         val last = segments.last()
         val out = FloatArray(last.start + last.length)
-        // A melody often repeats pitches: shift the sound once per pitch.
-        val atPitch = HashMap<Int, FloatArray>()
+        // A melody often repeats notes: render each pitch (and each stretched length) once.
+        val rendered = HashMap<Pair<Int, Int>, FloatArray>()
         for (segment in segments) {
-            val shifted = atPitch.getOrPut(segment.midi) {
+            // Notes no longer than the sound share one render, cut to length afterwards.
+            val stretchedLength = if (segment.length > sound.size) segment.length else 0
+            val note = rendered.getOrPut(segment.midi to stretchedLength) {
+                val stretch = if (stretchedLength > 0) stretchedLength.toDouble() / sound.size else 1.0
                 if (pitched) {
-                    PitchFlattener.flatten(sound, track, sampleRate / midiToHz(segment.midi), sampleRate)
+                    PitchFlattener.shift(sound, track, sampleRate, stretch) { position ->
+                        val frame = ((position + track.hopSize / 2) / track.hopSize).coerceIn(0, movement.lastIndex)
+                        sampleRate / midiToHz(segment.midi + movement[frame].toDouble())
+                    }
                 } else {
-                    resample(sound, midiToHz(segment.midi) / midiToHz(UNPITCHED_REFERENCE_MIDI))
+                    val shifted = resample(sound, midiToHz(segment.midi) / midiToHz(UNPITCHED_REFERENCE_MIDI))
+                    if (shifted.size < segment.length) {
+                        TimeStretch(segment.length.toDouble() / shifted.size).process(shifted, sampleRate)
+                    } else {
+                        shifted
+                    }
                 }
             }
-            fit(shifted, segment.length, sampleRate).copyInto(out, segment.start)
+            fit(note, segment.length, sampleRate).copyInto(out, segment.start)
         }
         return out
     }
@@ -59,10 +76,47 @@ class MelodyVoice(private val melody: Melody) : Effect {
         /** Kept around the voice so its attack and release aren't clipped: 10 ms. */
         private const val VOICE_MARGIN_SECONDS = 0.010
 
+        /** Stretched renders can come out a sample or two short of the note. */
+        private const val ROUNDING_SLACK = 4
+
         /** A sound without a detectable pitch is treated as if it were at C4. */
         private const val UNPITCHED_REFERENCE_MIDI = 60
 
-        fun midiToHz(midi: Int): Double = 440.0 * 2.0.pow((midi - 69) / 12.0)
+        /** Pitch movement slower than this (a glide, a drift) is removed; faster movement is kept. */
+        private const val SLOW_MOVEMENT_SECONDS = 0.2
+
+        /** The kept movement never takes a note further than this from its pitch, in semitones. */
+        private const val MAX_MOVEMENT_SEMITONES = 1.0f
+
+        fun midiToHz(midi: Double): Double = 440.0 * 2.0.pow((midi - 69) / 12.0)
+
+        fun midiToHz(midi: Int): Double = midiToHz(midi.toDouble())
+
+        /**
+         * Per pitch-track frame, the voice's fast pitch movement in semitones: its pitch minus the
+         * average pitch over the surrounding [SLOW_MOVEMENT_SECONDS], capped at
+         * [MAX_MOVEMENT_SEMITONES]. Unvoiced frames are 0.
+         */
+        fun naturalMovement(track: PitchTrack, sampleRate: Int): FloatArray {
+            val semitones = FloatArray(track.hz.size) { j ->
+                val hz = track.hz[j]
+                if (hz > 0f) (12 * ln(hz / 440.0) / ln(2.0)).toFloat() else Float.NaN
+            }
+            // Frames on each side of the averaging window.
+            val radius = (SLOW_MOVEMENT_SECONDS / 2 * sampleRate / track.hopSize).roundToInt().coerceAtLeast(1)
+            return FloatArray(semitones.size) { j ->
+                if (semitones[j].isNaN()) return@FloatArray 0f
+                var sum = 0.0
+                var count = 0
+                for (k in j - radius..j + radius) {
+                    if (k in semitones.indices && !semitones[k].isNaN()) {
+                        sum += semitones[k]
+                        count++
+                    }
+                }
+                (semitones[j] - (sum / count).toFloat()).coerceIn(-MAX_MOVEMENT_SEMITONES, MAX_MOVEMENT_SEMITONES)
+            }
+        }
 
         /** Where each note plays, relative to the first note, at the melody's tempo. */
         fun segments(melody: Melody, sampleRate: Int): List<Segment> {
@@ -108,10 +162,11 @@ class MelodyVoice(private val melody: Melody) : Effect {
 
         /**
          * [sound] lasting exactly [length] samples: cut when longer, time-stretched (same pitch)
-         * when shorter. Always ends with a short fade.
+         * when shorter (a few samples short, from rounding, are padded instead). Always ends with
+         * a short fade.
          */
         fun fit(sound: FloatArray, length: Int, sampleRate: Int): FloatArray {
-            val fitted = if (sound.size >= length) {
+            val fitted = if (sound.size >= length - ROUNDING_SLACK) {
                 sound.copyOf(length)
             } else {
                 TimeStretch(length.toDouble() / sound.size).process(sound, sampleRate).copyOf(length)
