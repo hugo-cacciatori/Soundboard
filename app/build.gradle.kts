@@ -70,6 +70,7 @@ android {
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                keepRules { files.add(file("keep-rules.pro")) }
             }
         }
     }
