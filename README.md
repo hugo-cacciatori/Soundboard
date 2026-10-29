@@ -15,7 +15,7 @@ An Android app that turns your voice into a personal soundboard. Create a button
 
 ## Install
 
-Soundboard needs a phone running **Android 7.0 or later**. There is no release yet; when there is, the APK will be on the [Releases page](https://github.com/hugo-cacciatori/Soundboard/releases): download it on your phone, open it, and allow the install when Android asks.
+Soundboard needs a phone running **Android 7.0 or later**. Get the latest APK from the [Releases page](https://github.com/hugo-cacciatori/Soundboard/releases): download it on your phone, open it, and allow the install when Android asks. Newer versions install over the old one and keep your buttons.
 
 ## How to use it
 
