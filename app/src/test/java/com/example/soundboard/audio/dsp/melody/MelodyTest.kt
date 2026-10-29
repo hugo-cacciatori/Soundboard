@@ -64,7 +64,7 @@ class MelodyTest {
     @Test
     fun codecRoundTrip() {
         val notes = listOf(Note(0, 48), Note(5, 60), Note(63, 72))
-        assertEquals("0:48,5:60,63:72", NoteCodec.encode(notes))
+        assertEquals("0:48:1,5:60:1,63:72:1", NoteCodec.encode(notes))
         assertEquals(notes, NoteCodec.decode(NoteCodec.encode(notes), steps = 64))
         assertEquals(emptyList<Note>(), NoteCodec.decode("", steps = 64))
     }
@@ -73,6 +73,58 @@ class MelodyTest {
     fun codecSkipsDamagedEntries() {
         val decoded = NoteCodec.decode("4:60,x:1,2:62,70:60,3:99,4:65,9", steps = 64)
         assertEquals(listOf(Note(2, 62), Note(4, 60)), decoded)
+    }
+
+    @Test
+    fun codecReadsLengthsAndOlderPairs() {
+        val notes = listOf(Note(0, 60, 3), Note(4, 62, 1), Note(8, 64, 8))
+        assertEquals(notes, NoteCodec.decode(NoteCodec.encode(notes), steps = 64))
+        // Rows saved before notes had lengths are 1 step long; overlaps are shortened.
+        assertEquals(listOf(Note(0, 60, 4), Note(4, 62, 1)), NoteCodec.decode("0:60:8,4:62", steps = 64))
+        assertEquals(listOf(Note(60, 60, 4)), NoteCodec.decode("60:60:9,7:60:0", steps = 64))
+    }
+
+    @Test
+    fun placingInsideASoundingNoteShortensIt() {
+        val melody = Melody().withNote(0, 60, 4).withNote(2, 62)
+        assertEquals(listOf(Note(0, 60, 2), Note(2, 62, 1)), melody.notes)
+    }
+
+    @Test
+    fun aNewNoteStopsBeforeTheNextOne() {
+        val melody = Melody().withNote(4, 60).withNote(0, 62, 8)
+        assertEquals(listOf(Note(0, 62, 4), Note(4, 60, 1)), melody.notes)
+        assertEquals(listOf(Note(60, 62, 4)), Melody().withNote(60, 62, 8).notes)
+    }
+
+    @Test
+    fun stretchingStopsAtTheNextNoteAndTheEnd() {
+        val melody = Melody().withNote(0, 60).withNote(3, 62)
+        assertEquals(3, melody.withLength(0, 10).notes[0].length)
+        assertEquals(61, melody.withLength(3, 100).notes[1].length)
+        assertEquals(1, melody.withNote(0, 60, 3).withLength(0, 0).notes[0].length)
+        assertEquals(melody, melody.withLength(7, 4)) // no note starts there
+    }
+
+    @Test
+    fun noteAtCoversTheWholeLength() {
+        val melody = Melody().withNote(4, 60, 3)
+        assertEquals(null, melody.noteAt(3))
+        assertEquals(Note(4, 60, 3), melody.noteAt(6))
+        assertEquals(null, melody.noteAt(7))
+    }
+
+    @Test
+    fun overlappingNotesAreRejected() {
+        assertThrows(IllegalArgumentException::class.java) { Melody(notes = listOf(Note(0, 60, 3), Note(2, 62))) }
+        assertThrows(IllegalArgumentException::class.java) { Melody(notes = listOf(Note(62, 60, 3))) }
+    }
+
+    @Test
+    fun switchingTimeSignatureShortensNotesThatWouldOverlap() {
+        // Bar 1, position 10, 6 steps long; bar 2 starts at step 12 in 6/8, so it shrinks to 2.
+        val melody = Melody().withNote(10, 60, 6).withNote(16, 62)
+        assertEquals(listOf(Note(10, 60, 2), Note(12, 62, 1)), melody.withTimeSignature(TimeSignature.SixEight).notes)
     }
 
     @Test

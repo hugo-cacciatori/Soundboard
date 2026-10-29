@@ -49,18 +49,63 @@ class MelodyVoiceTest {
     }
 
     @Test
-    fun aNoteIsCutByTheNextOne() {
-        val melody = Melody().withNote(0, 57).withNote(4, 64)
-        // The sample (10 steps long) is longer than the gap, so the first note stops at the second.
+    fun aNoteStopsAtItsLength() {
+        // The sample (10 steps long) is longer than both notes; a rest follows the first one.
+        val melody = Melody().withNote(0, 57, 2).withNote(4, 64)
         val segments = MelodyVoice.segments(melody, sampleLength = 10 * step, sampleRate = rate)
-        assertEquals(listOf(Segment(0, 4 * step, 57), Segment(4 * step, 10 * step, 64)), segments)
+        assertEquals(listOf(Segment(0, 2 * step, 57), Segment(4 * step, step, 64)), segments)
     }
 
     @Test
-    fun aShortSampleEndsBeforeTheNextNote() {
-        val melody = Melody().withNote(0, 57).withNote(8, 64)
+    fun aShortSampleEndsBeforeTheNoteDoes() {
+        val melody = Melody().withNote(0, 57, 8).withNote(8, 64, 8)
         val segments = MelodyVoice.segments(melody, sampleLength = 3 * step, sampleRate = rate)
         assertEquals(listOf(Segment(0, 3 * step, 57), Segment(8 * step, 3 * step, 64)), segments)
+    }
+
+    /** A take as recorded: [lead] seconds of room noise before the voice starts. */
+    private fun take(lead: Double): FloatArray {
+        val voice = voice()
+        val random = java.util.Random(1)
+        val start = (lead * rate).toInt()
+        return FloatArray(start + voice.size) { i ->
+            (random.nextGaussian() * 0.001).toFloat() + if (i >= start) voice[i - start] else 0f
+        }
+    }
+
+    private fun rms(x: FloatArray, from: Int, to: Int): Double {
+        var sum = 0.0
+        for (i in from until to) sum += x[i].toDouble() * x[i]
+        return kotlin.math.sqrt(sum / (to - from))
+    }
+
+    @Test
+    fun voiceOnsetSkipsTheSilenceBeforeTheVoice() {
+        val onset = MelodyVoice.voiceOnset(take(0.3), rate)
+        // 10 ms of lead are kept before the voice (which starts at 0.3 s).
+        assertEquals(0.3 * rate - rate / 100, onset.toDouble(), rate * 0.003)
+        assertEquals(0, MelodyVoice.voiceOnset(voice(), rate))
+    }
+
+    @Test
+    fun consecutiveShortNotesAllSoundWithSilenceBeforeTheVoice() {
+        // The bug: each 1-step note (125 ms) used to play only the 300 ms of silence at the start.
+        val melody = Melody().withNote(0, 60).withNote(1, 62).withNote(2, 64).withNote(3, 65)
+        val out = MelodyVoice(melody).process(take(0.3), rate)
+        for (n in 0 until 4) {
+            val level = rms(out, n * step + step / 4, n * step + step * 3 / 4)
+            assertTrue("note $n level $level", level > 0.05)
+        }
+        assertEquals(4 * step, out.size)
+    }
+
+    @Test
+    fun aRestBetweenNotesIsSilent() {
+        val melody = Melody().withNote(0, 60, 2).withNote(4, 62, 2)
+        val out = MelodyVoice(melody).process(voice(), rate)
+        // Steps 2 and 3 rest; allow the vocoder's envelopes about 30 ms to die away.
+        assertTrue(rms(out, 2 * step + rate * 3 / 100, 4 * step) < 0.01)
+        assertTrue(rms(out, 4 * step + step / 4, 5 * step) > 0.05)
     }
 
     @Test
@@ -82,7 +127,8 @@ class MelodyVoiceTest {
     @Test
     fun everyNoteRestartsTheSample() {
         val sample = FloatArray(10 * step) { (it % 997) / 997f }
-        val segments = MelodyVoice.segments(Melody().withNote(0, 57).withNote(4, 64), sample.size, rate)
+        val melody = Melody().withNote(0, 57, 4).withNote(4, 64, 10)
+        val segments = MelodyVoice.segments(melody, sample.size, rate)
         val modulator = MelodyVoice.modulator(sample, segments, rate)
         assertEquals(4 * step + sample.size, modulator.size)
         for (i in 0 until 1000) {
@@ -96,7 +142,7 @@ class MelodyVoiceTest {
     @Test
     fun eachNoteSoundsAtItsPitch() {
         // A3 for one second, then E4: the voice itself is at 150 Hz.
-        val melody = Melody().withNote(0, 57).withNote(8, 64)
+        val melody = Melody().withNote(0, 57, 8).withNote(8, 64, 12)
         val out = MelodyVoice(melody).process(voice(), rate)
         assertEquals(220.0, pitchNear(out, rate * 3 / 10, 220.0), 220.0 * 0.01)
         assertEquals(329.63, pitchNear(out, rate * 13 / 10, 329.63), 329.63 * 0.01)
@@ -105,7 +151,7 @@ class MelodyVoiceTest {
     @Test
     fun outputRunsToTheEndOfTheLastNote() {
         val sample = voice(seconds = 1.5)
-        val out = MelodyVoice(Melody().withNote(0, 57).withNote(8, 64)).process(sample, rate)
+        val out = MelodyVoice(Melody().withNote(0, 57, 8).withNote(8, 64, 12)).process(sample, rate)
         assertEquals(8 * step + sample.size, out.size)
     }
 
@@ -130,10 +176,10 @@ class MelodyVoiceTest {
 
     @Test
     fun longestMelodyRendersInReasonableTime() {
-        // Worst case: 60 BPM, notes from the first to the last step, a full 5 s sample: about 21 s of output.
+        // Worst case: 60 BPM (a step is 0.25 s), a 5 s sample and a last note long enough to play all of it.
         val sample = voice(seconds = AudioConfig.MAX_CLIP_SECONDS.toDouble())
         val clip = ShortArray(sample.size) { (sample[it] * 32767).toInt().toShort() }
-        val melody = Melody(bpm = Melody.MIN_BPM).withNote(0, 60).withNote(32, 64).withNote(63, 67)
+        val melody = Melody(bpm = Melody.MIN_BPM).withNote(0, 60, 20).withNote(44, 64, 20)
         FxRenderer.render(clip, Fx.Melody, melody) // warm-up
         val start = System.nanoTime()
         val out = FxRenderer.render(clip, Fx.Melody, melody)

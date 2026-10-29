@@ -67,6 +67,7 @@ class MelodyEditorActions(
     val onBack: () -> Unit,
     val onPlayToggle: () -> Unit,
     val onCellTap: (step: Int, midi: Int) -> Unit,
+    val onNoteLength: (step: Int, length: Int) -> Unit,
     val onBpmStep: (Int) -> Unit,
     val onTimeSignature: (TimeSignature) -> Unit,
     val onClear: () -> Unit,
@@ -151,6 +152,7 @@ fun MelodyEditorScreen(state: MelodyEditorUiState, actions: MelodyEditorActions)
                 melody = state.melody,
                 playhead = state.playhead,
                 onCellTap = actions.onCellTap,
+                onNoteLength = actions.onNoteLength,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -359,7 +361,7 @@ private fun RenameDialog(initial: String, onConfirm: (String) -> Unit, onDismiss
 @Preview(showBackground = true, backgroundColor = 0xFF121218, widthDp = 360, heightDp = 720)
 @Composable
 private fun MelodyEditorPreview() {
-    val melody = Melody().withNote(0, 60).withNote(4, 64).withNote(8, 67).withNote(12, 72).withNote(16, 67)
+    val melody = Melody().withNote(0, 60, 2).withNote(4, 64).withNote(5, 67, 3).withNote(12, 72, 4).withNote(16, 67)
     SoundboardTheme {
         MelodyEditorScreen(
             state = MelodyEditorUiState(
@@ -371,7 +373,7 @@ private fun MelodyEditorPreview() {
                 playing = true,
                 playhead = 5.5f,
             ),
-            actions = MelodyEditorActions({}, {}, { _, _ -> }, {}, {}, {}, {}),
+            actions = MelodyEditorActions({}, {}, { _, _ -> }, { _, _ -> }, {}, {}, {}, {}),
         )
     }
 }

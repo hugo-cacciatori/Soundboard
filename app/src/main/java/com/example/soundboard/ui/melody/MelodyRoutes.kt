@@ -67,6 +67,7 @@ fun MelodyEditorRoute(viewModel: MelodyEditorViewModel, onBack: () -> Unit) {
             onBack = onBack,
             onPlayToggle = viewModel::onPlayToggle,
             onCellTap = viewModel::onCellTap,
+            onNoteLength = viewModel::onNoteLength,
             onBpmStep = viewModel::onBpmStep,
             onTimeSignature = viewModel::onTimeSignature,
             onClear = viewModel::onClear,

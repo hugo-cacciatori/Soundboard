@@ -66,6 +66,9 @@ class MelodyEditorViewModel(
     private var rendered: Pair<Melody, ShortArray>? = null
     private var warmJob: Job? = null
 
+    /** Length in steps of the last note placed or stretched: new notes get it. */
+    private var lastLength = 1
+
     init {
         viewModelScope.launch {
             val saved = repository.get(melodyId)
@@ -89,17 +92,29 @@ class MelodyEditorViewModel(
         }
     }
 
-    /** An empty cell places a note (replacing any on that step); the same note again removes it. */
+    /**
+     * A tap on a note removes it. Anywhere else it places a note with the length of the last note
+     * placed or stretched ([Melody.withNote] makes room for it).
+     */
     fun onCellTap(step: Int, midi: Int) {
         val melody = _state.value.melody
         if (step !in 0 until melody.steps || midi !in Melody.LOWEST_MIDI..Melody.HIGHEST_MIDI) return
-        val existing = melody.notes.firstOrNull { it.step == step }
-        if (existing?.midi == midi) {
-            change(melody.withoutNote(step))
+        val sounding = melody.noteAt(step)
+        if (sounding?.midi == midi) {
+            change(melody.withoutNote(sounding.step))
         } else {
-            change(melody.withNote(step, midi))
+            change(melody.withNote(step, midi, lastLength))
             audition(midi)
         }
+    }
+
+    /** A note was dragged longer or shorter; new notes then get this length. */
+    fun onNoteLength(step: Int, length: Int) {
+        val melody = _state.value.melody
+        val updated = melody.withLength(step, length)
+        if (updated == melody) return
+        lastLength = updated.notes.first { it.step == step }.length
+        change(updated)
     }
 
     fun onBpmStep(delta: Int) {

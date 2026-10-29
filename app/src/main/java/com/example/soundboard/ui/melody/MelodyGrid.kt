@@ -1,7 +1,9 @@
 package com.example.soundboard.ui.melody
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.soundboard.R
 import com.example.soundboard.audio.dsp.melody.Melody
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private val Cell = 36.dp
@@ -45,6 +48,7 @@ private val KeyWidth = 52.dp
 private val HeaderHeight = 24.dp
 private val NoteInset = 3.dp
 private val NoteCorner = 6.dp
+private val GripInset = 5.dp
 
 /** Pitch rows, highest at the top. */
 private const val ROWS = Melody.HIGHEST_MIDI - Melody.LOWEST_MIDI + 1
@@ -57,6 +61,9 @@ private const val INITIAL_TOP_MIDI = 67
  * steps as columns (bar numbers on top; step, beat and bar lines). Scrolls both ways. The pinned
  * key column and header follow the scroll in the draw phase, so scrolling never recomposes.
  *
+ * Gestures: a tap on a cell calls [onCellTap]. A drag that starts on a note stretches or shortens
+ * it, one step at a time ([onNoteLength] with the note's start step); a drag anywhere else scrolls.
+ *
  * @param playhead position in steps while playing, or null.
  */
 @Composable
@@ -64,6 +71,7 @@ fun MelodyGrid(
     melody: Melody,
     playhead: Float?,
     onCellTap: (step: Int, midi: Int) -> Unit,
+    onNoteLength: (step: Int, length: Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = MaterialTheme.colorScheme
@@ -73,6 +81,8 @@ fun MelodyGrid(
     val vertical = rememberScrollState()
     val measurer = rememberTextMeasurer()
     val onTap by rememberUpdatedState(onCellTap)
+    val onLength by rememberUpdatedState(onNoteLength)
+    val currentMelody by rememberUpdatedState(melody)
     val steps = melody.steps
     val stepsPerBar = melody.timeSignature.stepsPerBar
     val stepsPerBeat = melody.timeSignature.stepsPerBeat
@@ -139,10 +149,40 @@ fun MelodyGrid(
                     Modifier
                         .size(Cell * steps, Cell * ROWS)
                         .pointerInput(steps) {
-                            detectTapGestures { offset ->
-                                val step = (offset.x / cellPx).toInt()
-                                val row = (offset.y / cellPx).toInt()
-                                if (step in 0 until steps && row in 0 until ROWS) onTap(step, Melody.HIGHEST_MIDI - row)
+                            awaitEachGesture {
+                                val down = awaitFirstDown()
+                                val step = (down.position.x / cellPx).toInt()
+                                val row = (down.position.y / cellPx).toInt()
+                                if (step !in 0 until steps || row !in 0 until ROWS) return@awaitEachGesture
+                                val midi = Melody.HIGHEST_MIDI - row
+                                val note = currentMelody.noteAt(step)?.takeIf { it.midi == midi }
+                                if (note == null) {
+                                    // Empty cell: a tap places a note. A drag is a scroll, which cancels the tap.
+                                    if (waitForUpOrCancellation() != null) onTap(step, midi)
+                                    return@awaitEachGesture
+                                }
+                                // On a note: consume everything so the grid doesn't scroll; a drag sets the length.
+                                down.consume()
+                                var dragging = false
+                                var lastLength = note.length
+                                while (true) {
+                                    val change = awaitPointerEvent().changes.firstOrNull { it.id == down.id } ?: break
+                                    if (!change.pressed) {
+                                        if (!dragging) onTap(step, midi)
+                                        change.consume()
+                                        break
+                                    }
+                                    val dx = change.position.x - down.position.x
+                                    if (!dragging && abs(dx) > viewConfiguration.touchSlop) dragging = true
+                                    if (dragging) {
+                                        val length = note.length + (dx / cellPx).roundToInt()
+                                        if (length != lastLength) {
+                                            lastLength = length
+                                            onLength(note.step, length)
+                                        }
+                                    }
+                                    change.consume()
+                                }
                             }
                         },
                 ) {
@@ -174,14 +214,28 @@ fun MelodyGrid(
                     }
                     val inset = NoteInset.toPx()
                     val corner = CornerRadius(NoteCorner.toPx())
+                    val grip = GripInset.toPx()
                     for (note in melody.notes) {
-                        val row = Melody.HIGHEST_MIDI - note.midi
+                        val top = (Melody.HIGHEST_MIDI - note.midi) * cellPx + inset
+                        val height = cellPx - 2 * inset
+                        val left = note.step * cellPx + inset
+                        val right = note.end * cellPx - inset
                         drawRoundRect(
                             color = colors.primary,
-                            topLeft = Offset(note.step * cellPx + inset, row * cellPx + inset),
-                            size = Size(cellPx - 2 * inset, cellPx - 2 * inset),
+                            topLeft = Offset(left, top),
+                            size = Size(right - left, height),
                             cornerRadius = corner,
                         )
+                        // Grip at the end: the note can be dragged longer or shorter.
+                        for (k in 1..2) {
+                            val x = right - k * grip
+                            drawLine(
+                                color = colors.onPrimary.copy(alpha = 0.6f),
+                                start = Offset(x, top + height * 0.3f),
+                                end = Offset(x, top + height * 0.7f),
+                                strokeWidth = 1.5.dp.toPx(),
+                            )
+                        }
                     }
                     playhead?.let {
                         val x = it * cellPx
