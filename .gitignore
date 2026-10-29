@@ -30,3 +30,8 @@ docs/
 
 # Local releases
 dist/
+
+# Signing key and its passwords: never committed
+keystore.properties
+*.jks
+*.keystore

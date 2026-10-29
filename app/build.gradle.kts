@@ -1,8 +1,22 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
 }
+
+// The owner's signing key, described by the git-ignored keystore.properties (storeFile,
+// storePassword, keyAlias, keyPassword). It signs every APK, debug builds included, so any build
+// installs over any other and keeps the user's buttons. Without it (a fresh clone), debug builds
+// use the default debug key and release builds are unsigned.
+val keystoreProperties = Properties().apply {
+    val file = rootProject.file("keystore.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val hasOwnerKey = listOf("storeFile", "storePassword", "keyAlias", "keyPassword")
+    .all { !keystoreProperties.getProperty(it).isNullOrBlank() }
+if (!hasOwnerKey) logger.warn("keystore.properties missing or incomplete: debug key for debug builds, release unsigned")
 
 android {
     namespace = "com.example.soundboard"
@@ -10,8 +24,20 @@ android {
         version = release(37)
     }
 
+    signingConfigs {
+        if (hasOwnerKey) {
+            create("owner") {
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
+    }
+
     defaultConfig {
-        applicationId = "com.example.soundboard"
+        // Never change after the first release: Android would treat it as another app.
+        applicationId = "io.github.hugocacciatori.soundboard"
         minSdk = 24
         targetSdk = 37
         versionCode = 1
@@ -21,7 +47,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (hasOwnerKey) signingConfig = signingConfigs.getByName("owner")
+        }
         release {
+            if (hasOwnerKey) signingConfig = signingConfigs.getByName("owner")
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
