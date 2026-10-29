@@ -1,5 +1,6 @@
 <resources>
     <string name="app_name">Soundboard</string>
+    <string name="app_version">Version %1$s</string>
 
     <!-- Title card (launch) -->
     <string name="title_card_tagline">Your voice, one tap away.</string>

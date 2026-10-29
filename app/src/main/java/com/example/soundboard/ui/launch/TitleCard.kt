@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.soundboard.R
+import com.example.soundboard.ui.appVersionLabel
 import com.example.soundboard.ui.theme.SoundboardTheme
 
 /** How long the title card stays up on launch before fading out (it can be tapped away sooner). */
@@ -91,6 +92,13 @@ fun TitleCard(onSkip: () -> Unit, modifier: Modifier = Modifier, animateIn: Bool
             Text(
                 text = stringResource(R.string.title_card_tagline),
                 style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = appVersionLabel(),
+                style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
             )

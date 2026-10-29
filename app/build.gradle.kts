@@ -18,6 +18,18 @@ val hasOwnerKey = listOf("storeFile", "storePassword", "keyAlias", "keyPassword"
     .all { !keystoreProperties.getProperty(it).isNullOrBlank() }
 if (!hasOwnerKey) logger.warn("keystore.properties missing or incomplete: debug key for debug builds, release unsigned")
 
+// The git commit a debug build comes from, shown next to the version so the owner knows which
+// build is on the phone; "+" marks uncommitted changes. Empty when git isn't available.
+fun git(vararg args: String): String = runCatching {
+    providers.exec {
+        commandLine("git", *args)
+        isIgnoreExitValue = true
+    }.standardOutput.asText.get().trim()
+}.getOrDefault("")
+val gitCommit = git("rev-parse", "--short", "HEAD").let { commit ->
+    if (commit.isNotEmpty() && git("status", "--porcelain").isNotEmpty()) "$commit+" else commit
+}
+
 android {
     namespace = "com.example.soundboard"
     compileSdk {
@@ -49,9 +61,12 @@ android {
     buildTypes {
         debug {
             if (hasOwnerKey) signingConfig = signingConfigs.getByName("owner")
+            buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
         }
         release {
             if (hasOwnerKey) signingConfig = signingConfigs.getByName("owner")
+            // A release is identified by its version alone.
+            buildConfigField("String", "GIT_COMMIT", "\"\"")
             optimization {
                 enable = true
                 packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
@@ -64,6 +79,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

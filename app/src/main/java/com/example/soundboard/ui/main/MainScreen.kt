@@ -55,6 +55,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.soundboard.R
+import com.example.soundboard.ui.appVersionLabel
 import com.example.soundboard.data.ButtonEntity
 import com.example.soundboard.ui.theme.ButtonPalette
 import com.example.soundboard.ui.theme.SoundboardTheme
@@ -145,12 +146,19 @@ private fun MainToolbar(onAdd: () -> Unit, attention: Boolean) {
                 .padding(start = 20.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(R.string.app_name),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.weight(1f),
-            )
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.app_name),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                // Which build this is, so a test never runs on a stale install.
+                Text(
+                    text = appVersionLabel(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             AddButton(onClick = onAdd, attention = attention)
         }
     }
