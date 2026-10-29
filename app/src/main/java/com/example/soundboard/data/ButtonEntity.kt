@@ -21,4 +21,6 @@ data class ButtonEntity(
     /** Id of the button's effect (see [Fx]). The WAV file stays dry; the effect is applied on load. */
     @ColumnInfo(defaultValue = NO_FX_ID)
     val fxId: String = NO_FX_ID,
+    /** The melody played by the Melody effect; null for every other effect. */
+    val melodyId: String? = null,
 )

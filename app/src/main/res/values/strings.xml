@@ -77,4 +77,6 @@
     <string name="fx_none">None</string>
     <string name="fx_mouseyfier">Mouseyfier</string>
     <string name="fx_robot">Robot</string>
+    <string name="fx_melody">Melody</string>
+    <string name="editor_melody_missing">Choose a melody with at least one note to save this effect.</string>
 </resources>

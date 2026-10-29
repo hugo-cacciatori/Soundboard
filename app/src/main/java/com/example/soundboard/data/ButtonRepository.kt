@@ -15,10 +15,12 @@ import kotlinx.coroutines.withContext
  * Single source of truth for buttons: Room metadata + WAV files + the in-memory clip caches.
  *
  * The WAV file holds the dry sound (what the editor trims). Playback uses the playable clip: the
- * dry sound with the button's effect rendered in (the same array when there is no effect).
+ * dry sound with the button's effect rendered in (the same array when there is no effect). The
+ * Melody effect renders from the button's melody, read from [melodyDao].
  */
 class ButtonRepository(
     private val dao: ButtonDao,
+    private val melodyDao: MelodyDao,
     private val files: SoundFileStore,
     private val scope: CoroutineScope,
     private val dsp: CoroutineDispatcher = Dispatchers.Default,
@@ -39,11 +41,10 @@ class ButtonRepository(
                 if (Fx.byId(button.fxId) == Fx.None) playableClips.putIfAbsent(button.id, dry)
             }
             for (button in buttons) {
-                val fx = Fx.byId(button.fxId)
-                if (fx == Fx.None || playableClips.containsKey(button.id)) continue
+                if (Fx.byId(button.fxId) == Fx.None || playableClips.containsKey(button.id)) continue
                 val dry = dryClips[button.id] ?: continue
                 // putIfAbsent: a save that happened meanwhile wins over this startup render.
-                playableClips.putIfAbsent(button.id, withContext(dsp) { FxRenderer.render(dry, fx) })
+                playableClips.putIfAbsent(button.id, render(dry, button))
             }
         }
     }
@@ -67,35 +68,42 @@ class ButtonRepository(
     suspend fun loadPlayableClip(id: String): ShortArray? {
         playableClips[id]?.let { return it }
         val dry = loadSourceClip(id) ?: return null
-        val fx = Fx.byId(dao.getById(id)?.fxId)
-        val playable = withContext(dsp) { FxRenderer.render(dry, fx) }
+        val button = dao.getById(id) ?: return null
+        val playable = render(dry, button)
         return playableClips.putIfAbsent(id, playable) ?: playable
     }
 
     /**
      * Creates a button (when [id] is null) or updates an existing one. [newSound] is the processed
-     * dry clip; pass null to keep the existing sound. Returns the button id.
+     * dry clip; pass null to keep the existing sound. [melodyId] is kept only with the Melody
+     * effect. Returns the button id.
      */
-    suspend fun save(id: String?, name: String, colorId: String, fxId: String, newSound: ShortArray?): String {
+    suspend fun save(
+        id: String?,
+        name: String,
+        colorId: String,
+        fxId: String,
+        melodyId: String?,
+        newSound: ShortArray?,
+    ): String {
         val existing = id?.let { dao.getById(it) }
         val buttonId = existing?.id ?: id ?: UUID.randomUUID().toString()
         require(newSound != null || existing != null) { "A new button needs a sound" }
 
-        if (newSound != null) files.write(buttonId, newSound)
-        val dry = newSound ?: loadSourceClip(buttonId)
-        val needsRender = newSound != null || existing?.fxId != fxId || !playableClips.containsKey(buttonId)
-        val playable = if (dry != null && needsRender) {
-            withContext(dsp) { FxRenderer.render(dry, Fx.byId(fxId)) }
-        } else {
-            null
-        }
         val button = ButtonEntity(
             id = buttonId,
             name = name.trim(),
             colorId = colorId,
             sortOrder = existing?.sortOrder ?: System.currentTimeMillis(),
             fxId = fxId,
+            melodyId = melodyId.takeIf { Fx.byId(fxId) == Fx.Melody },
         )
+        if (newSound != null) files.write(buttonId, newSound)
+        val dry = newSound ?: loadSourceClip(buttonId)
+        // A melody may have been edited since this button was rendered, so Melody always re-renders.
+        val needsRender = newSound != null || existing?.fxId != fxId || existing?.melodyId != button.melodyId ||
+            Fx.byId(fxId) == Fx.Melody || !playableClips.containsKey(buttonId)
+        val playable = if (dry != null && needsRender) render(dry, button) else null
         try {
             dao.upsert(button)
         } catch (e: Exception) {
@@ -113,5 +121,28 @@ class ButtonRepository(
         files.delete(id)
         dryClips.remove(id)
         playableClips.remove(id)
+    }
+
+    /**
+     * The buttons' effect or melody changed outside this repository (a melody was edited or
+     * deleted): drop their playable clips and render them again in the background.
+     */
+    fun refreshPlayable(buttonIds: Collection<String>) {
+        for (id in buttonIds) playableClips.remove(id)
+        scope.launch {
+            for (id in buttonIds) {
+                val dry = loadSourceClip(id) ?: continue
+                val button = dao.getById(id) ?: continue
+                // putIfAbsent: a play or save that rendered meanwhile already has the newest data.
+                playableClips.putIfAbsent(id, render(dry, button))
+            }
+        }
+    }
+
+    private suspend fun render(dry: ShortArray, button: ButtonEntity): ShortArray {
+        val fx = Fx.byId(button.fxId)
+        if (fx == Fx.None) return dry
+        val melody = if (fx == Fx.Melody) button.melodyId?.let { melodyDao.getById(it) }?.toSavedMelody()?.melody else null
+        return withContext(dsp) { FxRenderer.render(dry, fx, melody) }
     }
 }

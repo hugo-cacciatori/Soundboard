@@ -41,6 +41,7 @@ fun fxName(fx: Fx): Int = when (fx) {
     Fx.None -> R.string.fx_none
     Fx.Mouseyfier -> R.string.fx_mouseyfier
     Fx.Robot -> R.string.fx_robot
+    Fx.Melody -> R.string.fx_melody
 }
 
 @DrawableRes
@@ -48,7 +49,11 @@ fun fxIcon(fx: Fx): Int = when (fx) {
     Fx.None -> R.drawable.ic_fx_none
     Fx.Mouseyfier -> R.drawable.ic_fx_mouse
     Fx.Robot -> R.drawable.ic_fx_robot
+    Fx.Melody -> R.drawable.ic_fx_melody
 }
+
+/** Melody stays out of the picker until its melody picker and editor exist: there would be no way to choose one. */
+private val pickableFx = Fx.entries - Fx.Melody
 
 /** The square that shows the current effect's icon and opens the picker when tapped. */
 @Composable
@@ -89,7 +94,7 @@ fun FxPickerPopup(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Fx.entries.chunked(FX_PER_ROW).forEach { rowFx ->
+            pickableFx.chunked(FX_PER_ROW).forEach { rowFx ->
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     rowFx.forEach { fx ->
                         FxTile(

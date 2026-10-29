@@ -27,10 +27,21 @@ enum class Fx(val id: String) {
 
     /** Robot voice: the whole clip flattened onto the nearest note, then a metallic comb (see [RobotVoice]). */
     Robot("robot"),
+
+    /**
+     * The sample sung as a melody the user arranges. The only effect that needs more than its id:
+     * the button's [com.example.soundboard.audio.dsp.melody.Melody]. Without one it plays dry.
+     * The vocoder rendering is not built yet, so for now it always plays dry.
+     */
+    Melody("melody"),
     ;
 
-    /** The processing for this effect, or null for [None]. Future "intensity" settings go here as parameters. */
-    fun effect(): Effect? = when (this) {
+    /**
+     * The processing for this effect, or null for [None] (and for [Melody] without a melody).
+     * Future "intensity" settings go here as parameters.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    fun effect(melody: com.example.soundboard.audio.dsp.melody.Melody? = null): Effect? = when (this) {
         None -> null
         Mouseyfier -> EffectChain(
             SpeedUp2x(),
@@ -38,6 +49,7 @@ enum class Fx(val id: String) {
             HighPass(cutoffHz = MOUSEY_HIGH_PASS_HZ),
         )
         Robot -> RobotVoice(combFeedback = ROBOT_COMB_FEEDBACK)
+        Melody -> null
     }
 
     companion object {
@@ -61,9 +73,15 @@ object FxRenderer {
      * Returns the clip as it should play with [fx]. [Fx.None] returns [clip] itself. The result is
      * peak-normalized to [AudioConfig.PEAK_TARGET_DBFS] like any recorded clip, so a lone sound
      * still plays at full level. If the effect leaves nothing audible, the dry clip is returned.
+     * [melody] is only used by [Fx.Melody].
      */
-    fun render(clip: ShortArray, fx: Fx, sampleRate: Int = AudioConfig.SAMPLE_RATE): ShortArray {
-        val effect = fx.effect() ?: return clip
+    fun render(
+        clip: ShortArray,
+        fx: Fx,
+        melody: com.example.soundboard.audio.dsp.melody.Melody? = null,
+        sampleRate: Int = AudioConfig.SAMPLE_RATE,
+    ): ShortArray {
+        val effect = fx.effect(melody) ?: return clip
         if (clip.isEmpty()) return clip
         val dry = FloatArray(clip.size) { clip[it] / SCALE_IN }
         val wet = effect.process(dry, sampleRate)

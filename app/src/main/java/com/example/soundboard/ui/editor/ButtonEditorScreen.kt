@@ -125,7 +125,7 @@ fun ButtonEditorScreen(
                 onPickerOpened = actions.onColorPickerOpened,
             )
             SoundSection(state = state, showHint = hints.record, actions = actions)
-            FxSection(fxId = state.fxId, onFxSelected = actions.onFxSelected)
+            FxSection(fxId = state.fxId, melodyMissing = state.melodyMissing, onFxSelected = actions.onFxSelected)
             if (microphoneDenied) {
                 MicrophoneDeniedCard(onOpenSettings = actions.onOpenSettings)
             }
@@ -264,7 +264,7 @@ private fun ColorSection(
 }
 
 @Composable
-private fun FxSection(fxId: String, onFxSelected: (String) -> Unit) {
+private fun FxSection(fxId: String, melodyMissing: Boolean, onFxSelected: (String) -> Unit) {
     var pickerOpen by rememberSaveable { mutableStateOf(false) }
     val selected = Fx.byId(fxId)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -284,6 +284,14 @@ private fun FxSection(fxId: String, onFxSelected: (String) -> Unit) {
                 text = stringResource(fxName(selected)),
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        // Says why Save is disabled.
+        if (melodyMissing) {
+            Text(
+                text = stringResource(R.string.editor_melody_missing),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

@@ -5,6 +5,7 @@ import com.example.soundboard.audio.MixerEngine
 import com.example.soundboard.audio.SoundRecorder
 import com.example.soundboard.data.AppPreferences
 import com.example.soundboard.data.ButtonRepository
+import com.example.soundboard.data.MelodyRepository
 import com.example.soundboard.data.SoundFileStore
 import com.example.soundboard.data.SoundboardDatabase
 import java.io.File
@@ -20,7 +21,9 @@ class AppContainer(context: Context) {
     private val database = SoundboardDatabase.create(appContext)
     private val soundFileStore = SoundFileStore(File(appContext.filesDir, "sounds"))
 
-    val buttonRepository = ButtonRepository(database.buttonDao(), soundFileStore, applicationScope)
+    val buttonRepository =
+        ButtonRepository(database.buttonDao(), database.melodyDao(), soundFileStore, applicationScope)
+    val melodyRepository = MelodyRepository(database.melodyDao(), buttonRepository)
     val preferences = AppPreferences(appContext)
     val mixerEngine = MixerEngine()
 

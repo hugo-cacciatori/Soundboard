@@ -1,0 +1,11 @@
+<!-- Melody: two beamed eighth notes. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Beam with both stems, then the two oval note heads. -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M8,6.2L20,3.5V6.3L8,9V6.2Z M8,7h1.6v10.5h-1.6Z M18.4,4h1.6v11h-1.6Z M3.6,17.5a3,2.3 0,1 0,6 0a3,2.3 0,1 0,-6 0Z M14,15a3,2.3 0,1 0,6 0a3,2.3 0,1 0,-6 0Z" />
+</vector>

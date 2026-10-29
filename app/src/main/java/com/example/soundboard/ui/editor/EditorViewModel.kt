@@ -14,7 +14,9 @@ import com.example.soundboard.audio.dsp.SoundProcessor
 import com.example.soundboard.audio.dsp.Waveform
 import com.example.soundboard.audio.dsp.fx.Fx
 import com.example.soundboard.audio.dsp.fx.FxRenderer
+import com.example.soundboard.audio.dsp.melody.Melody
 import com.example.soundboard.data.ButtonRepository
+import com.example.soundboard.data.MelodyRepository
 import com.example.soundboard.ui.theme.ButtonPalette
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.roundToInt
@@ -67,11 +69,19 @@ data class EditorUiState(
     val trimEnd: Float = 1f,
     /** The selected part is too quiet to keep. */
     val trimTooQuiet: Boolean = false,
+    /** The melody the Melody effect plays; kept while another effect is selected, saved only with Melody. */
+    val melodyId: String? = null,
+    val melodyName: String? = null,
+    val melodyHasNotes: Boolean = false,
 ) {
-    /** Save needs a name and a usable sound, and nothing in flight. */
+    /** The Melody effect is selected without a melody that has notes: the button can't be saved. */
+    val melodyMissing: Boolean
+        get() = Fx.byId(fxId) == Fx.Melody && (melodyId == null || !melodyHasNotes)
+
+    /** Save needs a name and a usable sound (and a melody for the Melody effect), and nothing in flight. */
     val canSave: Boolean
         get() = !loading && !saving && recording is RecordingState.Idle && name.isNotBlank() && hasSound &&
-            !trimTooQuiet
+            !trimTooQuiet && !melodyMissing
 
     val selectedDurationMs: Int
         get() = ((trimEnd - trimStart) * sourceDurationMs).roundToInt()
@@ -99,6 +109,7 @@ sealed interface EditorEvent {
 class EditorViewModel(
     private val buttonId: String?,
     private val repository: ButtonRepository,
+    private val melodies: MelodyRepository,
     private val engine: MixerEngine,
     private val recorderFactory: () -> SoundRecorder,
     private val processingDispatcher: CoroutineDispatcher = Dispatchers.Default,
@@ -119,10 +130,14 @@ class EditorViewModel(
     private var sourceIsStored = false
     private var trimJob: Job? = null
 
-    private class Preview(val clip: ShortArray, val fx: Fx, val rendered: Deferred<ShortArray>)
+    private class Preview(val clip: ShortArray, val fx: Fx, val melody: Melody?, val rendered: Deferred<ShortArray>)
 
     /** Last effect preview. Only touched on the main thread. */
     private var preview: Preview? = null
+
+    /** Content of the selected melody, kept current while it is edited elsewhere. */
+    private var melody: Melody? = null
+    private var melodyJob: Job? = null
 
     init {
         if (buttonId != null) {
@@ -142,6 +157,7 @@ class EditorViewModel(
                         )
                     }
                 }
+                button?.melodyId?.let(::watchMelody)
                 if (clip != null) setSource(clip, stored = true)
                 warmPreview()
             }
@@ -160,6 +176,11 @@ class EditorViewModel(
     fun onFxSelected(fxId: String) {
         _state.update { it.copy(fxId = fxId) }
         warmPreview()
+    }
+
+    /** A melody was picked for the Melody effect. */
+    fun onMelodySelected(melodyId: String) {
+        watchMelody(melodyId)
     }
 
     /** Starts recording when idle, stops it when recording. The caller has checked RECORD_AUDIO. */
@@ -240,7 +261,7 @@ class EditorViewModel(
                     _state.update { it.copy(saving = false) }
                     return@launch
                 }
-                repository.save(buttonId, s.name, s.colorId, s.fxId, pendingSound)
+                repository.save(buttonId, s.name, s.colorId, s.fxId, s.melodyId, pendingSound)
                 _events.send(EditorEvent.Saved)
             } catch (e: CancellationException) {
                 throw e
@@ -319,10 +340,30 @@ class EditorViewModel(
 
     /** The [clip] with [fx] rendered in; reuses the last preview when nothing changed. */
     private fun previewFor(clip: ShortArray, fx: Fx): Deferred<ShortArray> {
-        preview?.let { if (it.clip === clip && it.fx == fx) return it.rendered }
-        val rendered = viewModelScope.async(processingDispatcher) { FxRenderer.render(clip, fx) }
-        preview = Preview(clip, fx, rendered)
+        val melody = melody.takeIf { fx == Fx.Melody }
+        preview?.let { if (it.clip === clip && it.fx == fx && it.melody == melody) return it.rendered }
+        val rendered = viewModelScope.async(processingDispatcher) { FxRenderer.render(clip, fx, melody) }
+        preview = Preview(clip, fx, melody, rendered)
         return rendered
+    }
+
+    /** Follows the melody [melodyId] (it can be edited or deleted elsewhere) and keeps the state in sync. */
+    private fun watchMelody(melodyId: String) {
+        melodyJob?.cancel()
+        _state.update { it.copy(melodyId = melodyId) }
+        melodyJob = viewModelScope.launch {
+            melodies.observe(melodyId).collect { saved ->
+                melody = saved?.melody
+                _state.update {
+                    if (saved == null) {
+                        it.copy(melodyId = null, melodyName = null, melodyHasNotes = false)
+                    } else {
+                        it.copy(melodyName = saved.name, melodyHasNotes = !saved.melody.isEmpty)
+                    }
+                }
+                warmPreview()
+            }
+        }
     }
 
     /** Renders the preview in the background so Play responds right away. */
@@ -380,6 +421,7 @@ class EditorViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T = EditorViewModel(
                     buttonId = buttonId,
                     repository = container.buttonRepository,
+                    melodies = container.melodyRepository,
                     engine = container.mixerEngine,
                     recorderFactory = container::newRecorder,
                 ) as T
