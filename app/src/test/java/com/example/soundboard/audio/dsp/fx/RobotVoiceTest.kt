@@ -97,6 +97,38 @@ class RobotVoiceTest {
     }
 
     @Test
+    fun movingSyllablesAnOctaveKeepsTheirTiming() {
+        // Syllables at 110, 220 and 440 Hz with pauses: the note is A3 (220 Hz), so the first moves an
+        // octave up and the last an octave down. Each must start and end where it did (no comb: it rings on).
+        val syllables = listOf(Triple(0.10, 0.40, 110.0), Triple(0.55, 0.80, 220.0), Triple(1.00, 1.30, 440.0))
+        val input = FloatArray((rate * 1.4).toInt())
+        for ((from, to, hz) in syllables) {
+            for (i in (from * rate).toInt() until (to * rate).toInt()) {
+                var s = 0.0
+                for (k in 1..6) s += sin(2 * PI * k * hz * i / rate) / k
+                input[i] = (0.3 * s).toFloat()
+            }
+        }
+        val out = RobotVoice(combFeedback = 0.0).process(input, rate)
+        assertEquals(input.size, out.size)
+        // Times where the 5 ms level crosses a quarter of its peak, rising then falling.
+        val block = rate / 200
+        val levels = (0 until out.size / block).map { b ->
+            var sum = 0.0
+            for (i in b * block until (b + 1) * block) sum += out[i].toDouble() * out[i]
+            sum / block
+        }
+        val threshold = levels.max() / 16
+        val events = ArrayList<Double>()
+        for (b in 1 until levels.size) {
+            if ((levels[b] >= threshold) != (levels[b - 1] >= threshold)) events += b.toDouble() * block / rate
+        }
+        val expected = syllables.flatMap { listOf(it.first, it.second) }
+        assertEquals("$events", expected.size, events.size)
+        for ((e, a) in expected.zip(events)) assertEquals("$events", e, a, 0.012)
+    }
+
+    @Test
     fun noiseHasNoVoiceAndComesBackDry() {
         val random = java.util.Random(3)
         val noise = FloatArray(rate) { (random.nextGaussian() * 0.2).toFloat() }

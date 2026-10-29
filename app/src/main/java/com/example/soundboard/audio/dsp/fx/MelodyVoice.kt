@@ -11,7 +11,9 @@ import kotlin.math.roundToInt
 /**
  * The button's own sound singing [melody]. Monophonic: every note plays the sound from its start,
  * moved to the note's pitch, and lasts exactly the note's length at the melody's tempo: the sound
- * is cut when the note is shorter, and time-stretched (same pitch) when the note is longer.
+ * is cut when the note is shorter, and time-stretched (same pitch) when the note is longer. The
+ * last note is the exception: it plays the whole sound at its original duration, whatever its
+ * length. Moving the pitch never changes the speed: only the note's length cuts or stretches.
  *
  * The "sound" is the voiced part of the take: the silence a take usually has before and after the
  * voice is trimmed, otherwise short notes would play only silence. Its pitch is moved with
@@ -19,10 +21,11 @@ import kotlin.math.roundToInt
  * not held dead constant (that is what sounds robotic): the voice's fast natural movement (jitter,
  * vibrato) is kept around the note, and only its slow drift and speech glides are removed, so the
  * note is in tune on average. A longer note repeats pitch periods, which keeps the voice natural.
- * A sound with no detectable pitch is resampled and time-stretched instead, as if it were at C4.
+ * A sound with no detectable pitch is resampled instead, as if it were at C4, then time-stretched
+ * back to its own length.
  *
- * The result runs from the first note to the end of the last one: leading and trailing empty
- * steps add no silence; rests between notes do.
+ * The result runs from the first note to the end of the last note's sound: leading and trailing
+ * empty steps add no silence; rests between notes do.
  */
 class MelodyVoice(private val melody: Melody) : Effect {
 
@@ -39,12 +42,13 @@ class MelodyVoice(private val melody: Melody) : Effect {
         val movement = if (pitched) naturalMovement(track, sampleRate) else FloatArray(0)
 
         val last = segments.last()
-        val out = FloatArray(last.start + last.length)
+        val out = FloatArray(last.start + sound.size)
         // A melody often repeats notes: render each pitch (and each stretched length) once.
         val rendered = HashMap<Pair<Int, Int>, FloatArray>()
         for (segment in segments) {
-            // Notes no longer than the sound share one render, cut to length afterwards.
-            val stretchedLength = if (segment.length > sound.size) segment.length else 0
+            // The last note plays the whole sound; others no longer than the sound share one render, cut afterwards.
+            val length = if (segment === last) sound.size else segment.length
+            val stretchedLength = if (length > sound.size) length else 0
             val note = rendered.getOrPut(segment.midi to stretchedLength) {
                 val stretch = if (stretchedLength > 0) stretchedLength.toDouble() / sound.size else 1.0
                 if (pitched) {
@@ -53,15 +57,14 @@ class MelodyVoice(private val melody: Melody) : Effect {
                         sampleRate / midiToHz(segment.midi + movement[frame].toDouble())
                     }
                 } else {
+                    // Resampling moves the pitch but also the speed: stretch it back, plus the note's own stretch.
                     val shifted = resample(sound, midiToHz(segment.midi) / midiToHz(UNPITCHED_REFERENCE_MIDI))
-                    if (shifted.size < segment.length) {
-                        TimeStretch(segment.length.toDouble() / shifted.size).process(shifted, sampleRate)
-                    } else {
-                        shifted
-                    }
+                    // Short grains: long ones would smear each attack over the grain, ahead of its time.
+                    TimeStretch(sound.size * stretch / shifted.size, UNPITCHED_GRAIN, UNPITCHED_GRAIN / 4)
+                        .process(shifted, sampleRate)
                 }
             }
-            fit(note, segment.length, sampleRate).copyInto(out, segment.start)
+            fit(note, length, sampleRate).copyInto(out, segment.start)
         }
         return out
     }
@@ -81,6 +84,9 @@ class MelodyVoice(private val melody: Melody) : Effect {
 
         /** A sound without a detectable pitch is treated as if it were at C4. */
         private const val UNPITCHED_REFERENCE_MIDI = 60
+
+        /** Time-stretch grain for sounds without a pitch, in samples (about 5 ms at 48 kHz). */
+        private const val UNPITCHED_GRAIN = 256
 
         /** Pitch movement slower than this (a glide, a drift) is removed; faster movement is kept. */
         private const val SLOW_MOVEMENT_SECONDS = 0.2
@@ -186,7 +192,7 @@ class MelodyVoice(private val melody: Melody) : Effect {
 
         /**
          * Pitch shift by playing [x] [ratio] times faster (linear interpolation), which also changes
-         * its length; [fit] sets the length afterwards. Only for sounds without a detectable pitch.
+         * its length and speed; the caller time-stretches it back. Only for sounds without a detectable pitch.
          */
         private fun resample(x: FloatArray, ratio: Double): FloatArray {
             if (x.size < 2) return x.copyOf()

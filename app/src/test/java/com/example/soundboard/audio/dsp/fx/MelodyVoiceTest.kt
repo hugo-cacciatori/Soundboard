@@ -128,21 +128,23 @@ class MelodyVoiceTest {
     @Test
     fun aShortNoteCutsTheSound() {
         val sound = voice(hz = 220.0)
-        val out = MelodyVoice(Melody().withNote(0, 57, 2)).process(sound, rate)
-        assertEquals(2 * step, out.size)
+        // A last note follows: only the last note plays the whole sound.
+        val out = MelodyVoice(Melody().withNote(0, 57, 2).withNote(4, 57)).process(sound, rate)
+        assertEquals(4 * step + sound.size, out.size)
         // The start of the original sound, not something else.
-        assertTrue(similarity(sound, out, rate / 50, out.size - rate / 50) > 0.95)
+        assertTrue(similarity(sound, out, rate / 50, 2 * step - rate / 50) > 0.95)
+        assertTrue(rms(out, 2 * step, 4 * step) < 1e-6)
     }
 
     @Test
     fun aLongNoteStretchesTheSoundAtTheSamePitch() {
         // A 0.5 s sound on a 2 s note.
         val sound = voice(hz = 220.0, seconds = 0.5)
-        val out = MelodyVoice(Melody().withNote(0, 57, 16)).process(sound, rate)
-        assertEquals(16 * step, out.size)
+        val out = MelodyVoice(Melody().withNote(0, 57, 16).withNote(16, 57)).process(sound, rate)
+        assertEquals(16 * step + sound.size, out.size)
         assertEquals(220.0, pitchNear(out, rate, 220.0), 220.0 * 0.01)
-        // Still sounding near the end: stretched, not padded with silence.
-        assertTrue(rms(out, out.size * 3 / 4, out.size - rate / 50) > 0.05)
+        // Still sounding near the note's end: stretched, not padded with silence.
+        assertTrue(rms(out, 12 * step, 16 * step - rate / 50) > 0.05)
     }
 
     @Test
@@ -193,7 +195,6 @@ class MelodyVoiceTest {
         // Each 1-step note (125 ms) must play the voice, not the 300 ms of silence before it.
         val melody = Melody().withNote(0, 60).withNote(1, 62).withNote(2, 64).withNote(3, 65)
         val out = MelodyVoice(melody).process(take(lead = 0.3), rate)
-        assertEquals(4 * step, out.size)
         for (n in 0 until 4) {
             val level = rms(out, n * step + step / 4, n * step + step * 3 / 4)
             assertTrue("note $n level $level", level > 0.05)
@@ -213,9 +214,106 @@ class MelodyVoiceTest {
         val random = java.util.Random(5)
         val hiss = FloatArray(rate / 2) { (random.nextGaussian() * 0.2).toFloat() }
         val out = MelodyVoice(Melody().withNote(0, 48, 4).withNote(4, 72, 4)).process(hiss, rate)
-        assertEquals(8 * step, out.size)
+        assertEquals(4 * step + hiss.size, out.size)
         assertTrue(rms(out, step, 3 * step) > 0.05)
         assertTrue(rms(out, 5 * step, 7 * step) > 0.05)
+    }
+
+    @Test
+    fun theLastNotePlaysTheWholeSoundWhateverItsLength() {
+        // A 1.5 s sound (12 steps) on a 1-step last note, and on a 30-step one: neither cut nor stretched.
+        val sound = voice(hz = 220.0)
+        for (length in listOf(1, 30)) {
+            val out = MelodyVoice(Melody().withNote(0, 57, 2).withNote(2, 57, length)).process(sound, rate)
+            assertEquals("length $length", 2 * step + sound.size, out.size)
+            val last = out.copyOfRange(2 * step, out.size)
+            assertTrue("length $length", similarity(sound, last, rate / 10, sound.size - rate / 10) > 0.95)
+        }
+    }
+
+    /**
+     * Three "syllables" with pauses: 0.10-0.35 s, 0.50-0.62 s and 0.85-1.25 s, in a 1.4 s take.
+     * Voiced (a voice at C4) or, with [pitched] false, hiss.
+     */
+    private fun syllables(pitched: Boolean): FloatArray {
+        val random = java.util.Random(7)
+        val tone = voice(hz = C4_HZ, seconds = 1.4)
+        return FloatArray((rate * 1.4).toInt()) { i ->
+            val t = i.toDouble() / rate
+            val on = SYLLABLES.any { (from, to) -> t >= from && t < to }
+            if (!on) 0f else if (pitched) tone[i] else (random.nextGaussian() * 0.2).toFloat()
+        }
+    }
+
+    /**
+     * Times in seconds where the level (over a sliding 20 ms window, every 2.5 ms) crosses 20 dB
+     * below its peak, rising then falling, in order.
+     */
+    private fun events(x: FloatArray): List<Double> {
+        val hop = rate / 400
+        val half = rate / 100
+        // Silence counts beyond both ends, so an edge close to an end is still seen.
+        val levels = (0..(x.size + 2 * half) / hop).map { b ->
+            var sum = 0.0
+            for (i in maxOf(b * hop - half, 0) until minOf(b * hop + half, x.size)) sum += x[i].toDouble() * x[i]
+            sqrt(sum / (2 * half))
+        }
+        val threshold = levels.max() / 10
+        val times = ArrayList<Double>()
+        var on = false
+        for ((b, level) in levels.withIndex()) {
+            if ((level >= threshold) != on) {
+                on = !on
+                times += b.toDouble() * hop / rate
+            }
+        }
+        return times
+    }
+
+    private fun assertSameTiming(expected: List<Double>, out: FloatArray, label: String) {
+        val actual = events(out)
+        assertEquals("$label: $actual", expected.size, actual.size)
+        for ((e, a) in expected.zip(actual)) assertEquals("$label: $expected vs $actual", e, a, 0.012)
+    }
+
+    @Test
+    fun pitchingUpOrDownKeepsTheDurationAndTiming() {
+        // The sound plays a whole octave above and below its own pitch, as a last note (no cut or
+        // stretch): every syllable and pause must stay where it was.
+        for (pitched in listOf(true, false)) {
+            val sound = syllables(pitched)
+            // The take's silent edges are trimmed: the voiced part is what the note plays.
+            val voiced = MelodyVoice.voicedPart(sound, rate)
+            val expected = events(voiced)
+            assertEquals(2 * SYLLABLES.size, expected.size)
+            // The voice is at C4; unpitched sounds count as C4 too.
+            for (midi in listOf(48, 72)) {
+                val out = MelodyVoice(Melody().withNote(0, midi)).process(sound, rate)
+                val label = "pitched $pitched, midi $midi"
+                assertEquals(label, voiced.size, out.size)
+                assertSameTiming(expected, out, label)
+            }
+        }
+    }
+
+    @Test
+    fun noteLengthAloneDecidesCutOrStretchWhateverThePitch() {
+        // 0.5 s sound on 4-step notes (0.5 s): an octave up or down, each note is the whole sound, never cut short.
+        for (pitched in listOf(true, false)) {
+            val sound = if (pitched) {
+                voice(hz = C4_HZ, seconds = 0.5)
+            } else {
+                val random = java.util.Random(3)
+                FloatArray(rate / 2) { (random.nextGaussian() * 0.2).toFloat() }
+            }
+            val melody = Melody().withNote(0, 72, 4).withNote(4, 48, 4).withNote(8, 60)
+            val out = MelodyVoice(melody).process(sound, rate)
+            for (n in 0 until 2) {
+                // Sounding to the end of the note: a faster sound would end early.
+                val level = rms(out, n * 4 * step + 3 * step, (n + 1) * 4 * step - rate / 50)
+                assertTrue("pitched $pitched note $n level $level", level > 0.03)
+            }
+        }
     }
 
     @Test
@@ -250,5 +348,10 @@ class MelodyVoiceTest {
         val ms = (System.nanoTime() - start) / 1_000_000
         println("Melody, ${out.size / rate} s output: $ms ms")
         assertTrue("took $ms ms", ms < 4_000)
+    }
+
+    private companion object {
+        const val C4_HZ = 261.63
+        val SYLLABLES = listOf(0.10 to 0.35, 0.50 to 0.62, 0.85 to 1.25)
     }
 }
