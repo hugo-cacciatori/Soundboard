@@ -30,17 +30,16 @@ enum class Fx(val id: String) {
 
     /**
      * The sample sung as a melody the user arranges. The only effect that needs more than its id:
-     * the button's [com.example.soundboard.audio.dsp.melody.Melody]. Without one it plays dry.
-     * The vocoder rendering is not built yet, so for now it always plays dry.
+     * the button's [com.example.soundboard.audio.dsp.melody.Melody] (see [MelodyVoice]). Without
+     * one, or with an empty one, it plays dry.
      */
     Melody("melody"),
     ;
 
     /**
-     * The processing for this effect, or null for [None] (and for [Melody] without a melody).
+     * The processing for this effect, or null for [None] (and for [Melody] without notes).
      * Future "intensity" settings go here as parameters.
      */
-    @Suppress("UNUSED_PARAMETER")
     fun effect(melody: com.example.soundboard.audio.dsp.melody.Melody? = null): Effect? = when (this) {
         None -> null
         Mouseyfier -> EffectChain(
@@ -49,7 +48,7 @@ enum class Fx(val id: String) {
             HighPass(cutoffHz = MOUSEY_HIGH_PASS_HZ),
         )
         Robot -> RobotVoice(combFeedback = ROBOT_COMB_FEEDBACK)
-        Melody -> null
+        Melody -> melody?.takeUnless { it.isEmpty }?.let { MelodyVoice(it) }
     }
 
     companion object {
