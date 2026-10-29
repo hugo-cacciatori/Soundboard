@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -43,7 +44,7 @@ import com.example.soundboard.ui.theme.SoundboardTheme
 /** Step 1 of the first run: three floating pads, one line of welcome and a single action. */
 @Composable
 fun OnboardingScreen(onCreateFirstButton: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    Surface(modifier = modifier.fillMaxSize(), color = Color.Transparent) {
         Column(
             modifier = Modifier
                 .fillMaxSize()

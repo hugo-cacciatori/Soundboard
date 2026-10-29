@@ -36,6 +36,7 @@ import com.example.soundboard.ui.editor.EditorViewModel
 import com.example.soundboard.ui.launch.TITLE_CARD_MILLIS
 import com.example.soundboard.ui.launch.LocalTitleCardUp
 import com.example.soundboard.ui.launch.TitleCard
+import com.example.soundboard.ui.theme.glowBackground
 import com.example.soundboard.ui.main.MainRoute
 import com.example.soundboard.ui.main.MainViewModel
 import com.example.soundboard.ui.onboarding.OnboardingScreen
@@ -95,7 +96,8 @@ fun SoundboardNavHost(container: AppContainer) {
         }
     }
 
-    Box(Modifier.fillMaxSize()) {
+    // The glow is drawn once here; the screens are transparent over it.
+    Box(Modifier.fillMaxSize().glowBackground()) {
         CompositionLocalProvider(LocalTitleCardUp provides (showTitleCard || startRoute == null)) {
             startRoute?.let { start -> SoundboardNavGraph(container, start) }
         }

@@ -29,19 +29,20 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -50,10 +51,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.soundboard.R
+import com.example.soundboard.data.ButtonEntity
 import com.example.soundboard.ui.PrimaryKey
 import com.example.soundboard.ui.appVersionLabel
 import com.example.soundboard.ui.launch.LocalTitleCardUp
-import com.example.soundboard.data.ButtonEntity
 import com.example.soundboard.ui.theme.ButtonPalette
 import com.example.soundboard.ui.theme.SoundboardTheme
 
@@ -85,7 +86,7 @@ fun MainScreen(
     Scaffold(
         // A fixed toolbar: not a grid item, no scroll behavior, never collapses.
         topBar = { MainToolbar(onAdd = onAdd, attention = state.loaded && state.buttons.isEmpty()) },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = Color.Transparent,
     ) { innerPadding ->
         val layoutDirection = LocalLayoutDirection.current
         Column(
@@ -135,7 +136,7 @@ fun MainScreen(
 
 @Composable
 private fun MainToolbar(onAdd: () -> Unit, attention: Boolean) {
-    Surface(color = MaterialTheme.colorScheme.background) {
+    Surface(color = Color.Transparent) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
