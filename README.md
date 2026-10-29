@@ -10,7 +10,7 @@ An Android app that turns your voice into a personal soundboard. Create a button
 - **Instant replay.** Tap to play, tap again to layer another copy on top. Nothing gets cut off.
 - **Loud but never distorted.** Every clip is leveled automatically, and a built-in limiter keeps stacked sounds from crackling.
 - **Trim.** Drag the edges of the waveform to keep just the good part.
-- **Effects.** Give a button an effect to change how it sounds: the **Mouseyfier** turns your voice into a tiny cartoon mouse 🐭, and **Robot** holds your whole sentence on one in-tune note with a metallic buzz 🤖.
+- **Effects.** Give a button an effect to change how it sounds: the **Mouseyfier** turns your voice into a tiny cartoon mouse 🐭, **Robot** holds your whole sentence on one in-tune note with a metallic buzz 🤖, and **Melody** makes your sound sing a tune you arrange yourself on a small four-bar grid 🎵. Melodies are saved, so you can reuse one on other buttons.
 - **Colors.** Pick from a palette made to look good together and keep the button labels readable.
 
 ## Install

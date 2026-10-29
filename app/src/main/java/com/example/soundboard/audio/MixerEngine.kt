@@ -21,6 +21,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  */
 class MixerEngine(private val core: MixerCore = MixerCore()) {
     private val triggers = ConcurrentLinkedQueue<ShortArray>()
+    private val stops = ConcurrentLinkedQueue<ShortArray>()
     private val lock = Any()
     private var thread: Thread? = null
 
@@ -44,6 +45,7 @@ class MixerEngine(private val core: MixerCore = MixerCore()) {
                 return
             }
             triggers.clear()
+            stops.clear()
             core.clear()
             val run = Run()
             currentRun = run
@@ -64,11 +66,17 @@ class MixerEngine(private val core: MixerCore = MixerCore()) {
             Thread.currentThread().interrupt()
         }
         triggers.clear()
+        stops.clear()
     }
 
     /** Starts a new voice for [clip] on top of whatever is playing. Ignored while stopped. */
     fun play(clip: ShortArray) {
         if (currentRun?.active == true) triggers.offer(clip)
+    }
+
+    /** Fades out every voice playing this exact [clip] instance (the melody editor's Stop). */
+    fun stop(clip: ShortArray) {
+        if (currentRun?.active == true) stops.offer(clip)
     }
 
     private fun buildTrack(): AudioTrack {
@@ -110,6 +118,11 @@ class MixerEngine(private val core: MixerCore = MixerCore()) {
                 while (true) {
                     val clip = triggers.poll() ?: break
                     core.play(clip)
+                }
+                // After the plays, so a play and a stop of the same clip in one buffer end silent.
+                while (true) {
+                    val clip = stops.poll() ?: break
+                    core.stop(clip)
                 }
                 core.render(buffer, buffer.size)
                 if (track.write(buffer, 0, buffer.size, AudioTrack.WRITE_BLOCKING) < 0) break

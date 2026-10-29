@@ -79,4 +79,54 @@
     <string name="fx_robot">Robot</string>
     <string name="fx_melody">Melody</string>
     <string name="editor_melody_missing">Choose a melody with at least one note to save this effect.</string>
+    <string name="editor_melody_choose">Choose a melody</string>
+    <string name="editor_melody_change">Edit</string>
+    <string name="editor_melody_description">Melody: %1$s. Tap to choose or edit.</string>
+
+    <!-- Melody picker -->
+    <string name="melodies_title">Melodies</string>
+    <string name="melodies_new">New melody</string>
+    <string name="melodies_empty">No melodies yet. Create one to make your sound sing.</string>
+    <string name="melody_default_name">Melody %1$d</string>
+    <string name="melody_summary">%1$s · %2$d BPM · %3$s</string>
+    <plurals name="melody_note_count">
+        <item quantity="one">%d note</item>
+        <item quantity="other">%d notes</item>
+    </plurals>
+    <string name="melody_selected">Selected</string>
+    <string name="melody_edit">Edit %1$s</string>
+    <string name="melody_delete">Delete %1$s</string>
+    <string name="melody_delete_title">Delete “%1$s”?</string>
+    <plurals name="melody_delete_used">
+        <item quantity="one">%d button uses this melody. It will play without an effect.</item>
+        <item quantity="other">%d buttons use this melody. They will play without an effect.</item>
+    </plurals>
+    <string name="melody_delete_unused">This can\'t be undone.</string>
+
+    <!-- Melody editor -->
+    <string name="melody_play">Play melody</string>
+    <string name="melody_stop">Stop</string>
+    <string name="melody_rename">Rename %1$s</string>
+    <string name="melody_rename_title">Rename melody</string>
+    <string name="melody_name_label">Name</string>
+    <string name="melody_rename_confirm">Rename</string>
+    <string name="melody_time_signature">Time signature</string>
+    <string name="melody_tempo">%1$d BPM</string>
+    <string name="melody_tempo_down">Slower</string>
+    <string name="melody_tempo_up">Faster</string>
+    <string name="melody_clear">Clear</string>
+    <string name="melody_clear_title">Clear all notes?</string>
+    <plurals name="melody_used_by">
+        <item quantity="one">Used by %d button</item>
+        <item quantity="other">Used by %d buttons · edits change all of them</item>
+    </plurals>
+    <string name="melody_no_sound">Record a sound to hear it</string>
+    <string name="melody_switch_title">Switch to %1$s?</string>
+    <plurals name="melody_switch_message">
+        <item quantity="one">%d note doesn\'t fit in the new bars and will be removed.</item>
+        <item quantity="other">%d notes don\'t fit in the new bars and will be removed.</item>
+    </plurals>
+    <string name="melody_switch_confirm">Switch</string>
+    <string name="melody_grid_description">Melody grid, %1$s. Tap a cell to add a note, tap a note to remove it.</string>
+    <string name="melody_empty_hint">Tap the grid to add notes.</string>
 </resources>

@@ -52,9 +52,6 @@ fun fxIcon(fx: Fx): Int = when (fx) {
     Fx.Melody -> R.drawable.ic_fx_melody
 }
 
-/** Melody stays out of the picker until its melody picker and editor exist: there would be no way to choose one. */
-private val pickableFx = Fx.entries - Fx.Melody
-
 /** The square that shows the current effect's icon and opens the picker when tapped. */
 @Composable
 fun FxSquare(fx: Fx, onClick: () -> Unit, modifier: Modifier = Modifier) {
@@ -94,7 +91,7 @@ fun FxPickerPopup(
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            pickableFx.chunked(FX_PER_ROW).forEach { rowFx ->
+            Fx.entries.chunked(FX_PER_ROW).forEach { rowFx ->
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     rowFx.forEach { fx ->
                         FxTile(

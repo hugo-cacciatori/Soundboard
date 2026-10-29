@@ -133,4 +133,28 @@ class MixerCoreTest {
         assertTrue("step $maxStep too large", maxStep < start / 100f)
         assertEquals(0f, out.last(), 1e-6f)
     }
+
+    @Test
+    fun stopFadesOutOnlyThatClip() {
+        val core = MixerCore()
+        val stopped = constantClip(1000, 48_000)
+        val kept = constantClip(2000, 48_000)
+        core.play(stopped)
+        core.play(kept)
+        render(core, 2000)
+        core.stop(stopped)
+        assertEquals(1, core.activeVoiceCount)
+        val after = render(core, 2000)
+        // A short fade, not a jump: a cut would step by 1000 / 32768 (about 0.03) in one sample.
+        for (i in 1 until after.size) assertTrue("jump at $i", abs(after[i] - after[i - 1]) < 0.005f)
+        assertEquals(2000 / 32768f, after.last(), 1e-4f)
+    }
+
+    @Test
+    fun stoppingAClipThatIsNotPlayingDoesNothing() {
+        val core = MixerCore()
+        core.play(constantClip(1000, 48_000))
+        core.stop(constantClip(1000, 48_000)) // equal content, different instance
+        assertEquals(1, core.activeVoiceCount)
+    }
 }

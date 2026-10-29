@@ -178,6 +178,9 @@ class EditorViewModel(
         warmPreview()
     }
 
+    /** The dry sound Play would use right now (unsaved take and trim included), for the melody editor. */
+    fun currentSound(): ShortArray? = pendingSound ?: source
+
     /** A melody was picked for the Melody effect. */
     fun onMelodySelected(melodyId: String) {
         watchMelody(melodyId)

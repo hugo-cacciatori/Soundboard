@@ -1,5 +1,12 @@
 package com.example.soundboard.ui.editor
 
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +65,7 @@ data class EditorActions(
     val onColorSelected: (String) -> Unit,
     val onColorPickerOpened: () -> Unit,
     val onFxSelected: (String) -> Unit,
+    val onOpenMelodies: () -> Unit,
     val onRecordTap: () -> Unit,
     val onPlayTap: () -> Unit,
     val onTrimStartChange: (Float) -> Unit,
@@ -125,7 +133,11 @@ fun ButtonEditorScreen(
                 onPickerOpened = actions.onColorPickerOpened,
             )
             SoundSection(state = state, showHint = hints.record, actions = actions)
-            FxSection(fxId = state.fxId, melodyMissing = state.melodyMissing, onFxSelected = actions.onFxSelected)
+            FxSection(
+                state = state,
+                onFxSelected = actions.onFxSelected,
+                onOpenMelodies = actions.onOpenMelodies,
+            )
             if (microphoneDenied) {
                 MicrophoneDeniedCard(onOpenSettings = actions.onOpenSettings)
             }
@@ -264,9 +276,9 @@ private fun ColorSection(
 }
 
 @Composable
-private fun FxSection(fxId: String, melodyMissing: Boolean, onFxSelected: (String) -> Unit) {
+private fun FxSection(state: EditorUiState, onFxSelected: (String) -> Unit, onOpenMelodies: () -> Unit) {
     var pickerOpen by rememberSaveable { mutableStateOf(false) }
-    val selected = Fx.byId(fxId)
+    val selected = Fx.byId(state.fxId)
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionLabel(stringResource(R.string.editor_fx_label))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -286,13 +298,60 @@ private fun FxSection(fxId: String, melodyMissing: Boolean, onFxSelected: (Strin
                 color = MaterialTheme.colorScheme.onSurface,
             )
         }
+        if (selected == Fx.Melody) MelodyRow(melodyName = state.melodyName, onClick = onOpenMelodies)
         // Says why Save is disabled.
-        if (melodyMissing) {
+        if (state.melodyMissing) {
             Text(
                 text = stringResource(R.string.editor_melody_missing),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/** Only with the Melody effect: the button's melody, opening the melody picker. */
+@Composable
+private fun MelodyRow(melodyName: String?, onClick: () -> Unit) {
+    if (melodyName == null) {
+        OutlinedButton(onClick = onClick, modifier = Modifier.fillMaxWidth()) {
+            Icon(painterResource(R.drawable.ic_fx_melody), contentDescription = null, modifier = Modifier.size(20.dp))
+            Text(stringResource(R.string.editor_melody_choose), modifier = Modifier.padding(start = 8.dp))
+        }
+        return
+    }
+    val colors = MaterialTheme.colorScheme
+    val description = stringResource(R.string.editor_melody_description, melodyName)
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = colors.surfaceContainerHigh,
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = description },
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_fx_melody),
+                contentDescription = null,
+                tint = colors.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = melodyName,
+                style = MaterialTheme.typography.bodyLarge,
+                color = colors.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 12.dp),
+            )
+            TextButton(onClick = onClick) { Text(stringResource(R.string.editor_melody_change)) }
         }
     }
 }
@@ -366,7 +425,7 @@ private fun ErrorText(error: EditorError) {
     )
 }
 
-private val noActions = EditorActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+private val noActions = EditorActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
 
 @Preview(name = "Tutorial, empty", showBackground = true, backgroundColor = 0xFF121218, heightDp = 760, widthDp = 360)
 @Composable

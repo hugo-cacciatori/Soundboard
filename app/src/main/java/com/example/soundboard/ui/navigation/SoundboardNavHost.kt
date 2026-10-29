@@ -22,6 +22,14 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.soundboard.AppContainer
+import androidx.compose.runtime.remember
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavBackStackEntry
+import androidx.navigation.NavHostController
+import com.example.soundboard.ui.melody.MelodyEditorRoute
+import com.example.soundboard.ui.melody.MelodyEditorViewModel
+import com.example.soundboard.ui.melody.MelodyPickerRoute
+import com.example.soundboard.ui.melody.MelodyPickerViewModel
 import com.example.soundboard.ui.editor.EditorRoute
 import com.example.soundboard.ui.editor.EditorViewModel
 import com.example.soundboard.ui.launch.TITLE_CARD_MILLIS
@@ -56,6 +64,15 @@ object Routes {
 
     const val ARG_BUTTON_ID_KEY = ARG_BUTTON_ID
     const val ARG_TUTORIAL_KEY = ARG_TUTORIAL
+
+    /** Melody picker, opened from the button editor (which stays below it on the back stack). */
+    const val MELODIES = "melodies"
+
+    const val ARG_MELODY_ID = "melodyId"
+    const val MELODY = "melody/{$ARG_MELODY_ID}"
+
+    /** Melody editor. Melody ids are UUIDs, safe in a route. */
+    fun melody(melodyId: String): String = "melody/$melodyId"
 }
 
 /**
@@ -122,7 +139,43 @@ private fun SoundboardNavGraph(container: AppContainer, start: String) {
                     }
                 },
                 onCancel = { navController.popBackStack() },
+                onOpenMelodies = { navController.navigate(Routes.MELODIES) },
+            )
+        }
+        composable(Routes.MELODIES) { entry ->
+            val editor = editorViewModel(container, navController, entry)
+            val editorState by editor.state.collectAsStateWithLifecycle()
+            MelodyPickerRoute(
+                viewModel = viewModel(factory = MelodyPickerViewModel.factory(container)),
+                selectedId = editorState.melodyId,
+                onPicked = { melody -> editor.onMelodySelected(melody.id) },
+                onOpenEditor = { melody -> navController.navigate(Routes.melody(melody.id)) },
+                onBack = { navController.popBackStack() },
+                onPickedAndDone = { navController.popBackStack() },
+            )
+        }
+        composable(
+            Routes.MELODY,
+            arguments = listOf(navArgument(Routes.ARG_MELODY_ID) { type = NavType.StringType }),
+        ) { entry ->
+            val melodyId = entry.arguments?.getString(Routes.ARG_MELODY_ID).orEmpty()
+            val editor = editorViewModel(container, navController, entry)
+            MelodyEditorRoute(
+                // The button's current sound (an unsaved take included) previews the melody.
+                viewModel = viewModel(factory = MelodyEditorViewModel.factory(container, melodyId, editor.currentSound())),
+                onBack = { navController.popBackStack() },
             )
         }
     }
+}
+
+/**
+ * The button editor's ViewModel, from its entry below the melody screens on the back stack, so they
+ * edit the same unsaved button.
+ */
+@Composable
+private fun editorViewModel(container: AppContainer, navController: NavHostController, entry: NavBackStackEntry): EditorViewModel {
+    val editorEntry = remember(entry) { navController.getBackStackEntry(Routes.EDITOR) }
+    val buttonId = editorEntry.arguments?.getString(Routes.ARG_BUTTON_ID_KEY)
+    return viewModel(editorEntry, factory = EditorViewModel.factory(container, buttonId))
 }

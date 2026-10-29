@@ -32,6 +32,7 @@ private fun hasMicrophonePermission(context: Context): Boolean =
  * @param tutorial true when opened from the first-run tutorial (shows the inline hints).
  * @param onFinished called after Save (`saved = true`) or Delete (`saved = false`).
  * @param onCancel called when the user backs out without saving.
+ * @param onOpenMelodies opens the melody picker (Melody effect).
  */
 @Composable
 fun EditorRoute(
@@ -39,6 +40,7 @@ fun EditorRoute(
     tutorial: Boolean,
     onFinished: (saved: Boolean) -> Unit,
     onCancel: () -> Unit,
+    onOpenMelodies: () -> Unit,
 ) {
     val context = LocalContext.current
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -80,6 +82,7 @@ fun EditorRoute(
             onColorSelected = viewModel::onColorSelected,
             onColorPickerOpened = { colorPickerSeen = true },
             onFxSelected = viewModel::onFxSelected,
+            onOpenMelodies = onOpenMelodies,
             onRecordTap = {
                 // Stopping never needs the permission; starting does.
                 if (viewModel.state.value.recording !is RecordingState.Idle || hasMicrophonePermission(context)) {

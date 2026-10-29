@@ -23,7 +23,7 @@ class AppContainer(context: Context) {
 
     val buttonRepository =
         ButtonRepository(database.buttonDao(), database.melodyDao(), soundFileStore, applicationScope)
-    val melodyRepository = MelodyRepository(database.melodyDao(), buttonRepository)
+    val melodyRepository = MelodyRepository(database.melodyDao(), buttonRepository, applicationScope)
     val preferences = AppPreferences(appContext)
     val mixerEngine = MixerEngine()
 
