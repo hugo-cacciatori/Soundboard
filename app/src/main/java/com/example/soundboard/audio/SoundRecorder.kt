@@ -11,6 +11,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 /** Result of one [SoundRecorder.record] call. */
 sealed interface RecordOutcome {
@@ -39,10 +40,10 @@ class SoundRecorder(private val io: CoroutineDispatcher = Dispatchers.IO) {
     /**
      * Records until [stop] is called, the coroutine is cancelled (the recorder is still released),
      * or [AudioConfig.MAX_CLIP_SAMPLES] samples were captured. [onProgress] receives the number of
-     * samples captured so far (from a background thread).
+     * samples captured so far and the latest chunk's peak level, 0 to 1 (from a background thread).
      */
     @SuppressLint("MissingPermission")
-    suspend fun record(onProgress: (capturedSamples: Int) -> Unit): RecordOutcome = withContext(io) {
+    suspend fun record(onProgress: (capturedSamples: Int, level: Float) -> Unit): RecordOutcome = withContext(io) {
         val minBuffer = AudioRecord.getMinBufferSize(
             AudioConfig.SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO,
@@ -89,7 +90,9 @@ class SoundRecorder(private val io: CoroutineDispatcher = Dispatchers.IO) {
                 }
                 chunk.copyInto(clip, total, 0, read)
                 total += read
-                onProgress(total)
+                var peak = 0
+                for (i in 0 until read) peak = maxOf(peak, abs(chunk[i].toInt()))
+                onProgress(total, peak / 32768f)
             }
             currentCoroutineContext().ensureActive()
             RecordOutcome.Recorded(clip.copyOf(total))

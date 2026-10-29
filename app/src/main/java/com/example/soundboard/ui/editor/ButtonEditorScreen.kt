@@ -1,23 +1,20 @@
 package com.example.soundboard.ui.editor
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.size
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,15 +38,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.soundboard.R
 import com.example.soundboard.audio.dsp.fx.Fx
+import com.example.soundboard.ui.PrimaryKey
 import com.example.soundboard.ui.onboarding.TutorialHint
 import com.example.soundboard.ui.theme.ButtonPalette
 import com.example.soundboard.ui.theme.SoundboardTheme
@@ -91,24 +95,10 @@ fun ButtonEditorScreen(
         topBar = {
             EditorToolbar(
                 isEditing = state.isEditing,
+                canSave = state.canSave,
                 onBack = actions.onBack,
-                onDelete = { confirmDelete = true },
+                onSave = actions.onSave,
             )
-        },
-        bottomBar = {
-            Surface(color = MaterialTheme.colorScheme.background) {
-                Button(
-                    onClick = actions.onSave,
-                    enabled = state.canSave,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                ) {
-                    Text(stringResource(R.string.editor_save))
-                }
-            }
         },
         containerColor = MaterialTheme.colorScheme.background,
     ) { innerPadding ->
@@ -116,22 +106,28 @@ fun ButtonEditorScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             if (hints.any) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = actions.onSkipHints) { Text(stringResource(R.string.editor_skip_tips)) }
                 }
             }
-            NameSection(state = state, showHint = hints.name, onNameChange = actions.onNameChange)
-            ColorSection(
-                colorId = state.colorId,
-                showHint = hints.color,
-                onColorSelected = actions.onColorSelected,
-                onPickerOpened = actions.onColorPickerOpened,
-            )
+            // Name and color side by side; their hints underneath.
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                NameField(state = state, onNameChange = actions.onNameChange, modifier = Modifier.weight(1f))
+                ColorSection(
+                    colorId = state.colorId,
+                    onColorSelected = actions.onColorSelected,
+                    onPickerOpened = actions.onColorPickerOpened,
+                )
+            }
+            if (hints.name) TutorialHint(stringResource(R.string.hint_name))
+            if (hints.color) TutorialHint(stringResource(R.string.hint_color))
             SoundSection(state = state, showHint = hints.record, actions = actions)
             FxSection(
                 state = state,
@@ -142,6 +138,20 @@ fun ButtonEditorScreen(
                 MicrophoneDeniedCard(onOpenSettings = actions.onOpenSettings)
             }
             state.error?.let { ErrorText(it) }
+            if (state.isEditing) {
+                TextButton(
+                    onClick = { confirmDelete = true },
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .heightIn(min = 48.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.editor_delete),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
             Spacer(Modifier.height(8.dp))
         }
     }
@@ -167,14 +177,14 @@ fun ButtonEditorScreen(
 }
 
 @Composable
-private fun EditorToolbar(isEditing: Boolean, onBack: () -> Unit, onDelete: () -> Unit) {
+private fun EditorToolbar(isEditing: Boolean, canSave: Boolean, onBack: () -> Unit, onSave: () -> Unit) {
     Surface(color = MaterialTheme.colorScheme.background) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .height(64.dp)
-                .padding(horizontal = 4.dp),
+                .height(72.dp)
+                .padding(start = 4.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
@@ -186,18 +196,17 @@ private fun EditorToolbar(isEditing: Boolean, onBack: () -> Unit, onDelete: () -
             }
             Text(
                 text = stringResource(if (isEditing) R.string.editor_title_edit else R.string.editor_title_new),
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f),
             )
-            if (isEditing) {
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_delete),
-                        contentDescription = stringResource(R.string.editor_delete),
-                        tint = MaterialTheme.colorScheme.error,
-                    )
-                }
+            // Always in reach, also while the keyboard is up.
+            PrimaryKey(onClick = onSave, enabled = canSave, corner = 16.dp, modifier = Modifier.heightIn(min = 48.dp)) {
+                Text(
+                    text = stringResource(R.string.editor_save),
+                    style = MaterialTheme.typography.labelLarge,
+                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+                )
             }
         }
     }
@@ -205,73 +214,60 @@ private fun EditorToolbar(isEditing: Boolean, onBack: () -> Unit, onDelete: () -
 
 @Composable
 private fun SectionLabel(text: String) {
-    Text(text = text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    Text(text = text, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 @Composable
-private fun NameSection(state: EditorUiState, showHint: Boolean, onNameChange: (String) -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OutlinedTextField(
-            value = state.name,
-            onValueChange = onNameChange,
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text(stringResource(R.string.editor_name_label)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Sentences,
-                imeAction = ImeAction.Done,
-            ),
-            supportingText = {
-                Text(
-                    text = stringResource(
-                        R.string.editor_name_counter,
-                        state.name.length,
-                        EditorViewModel.MAX_NAME_LENGTH,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.End,
-                )
-            },
-        )
-        if (showHint) TutorialHint(stringResource(R.string.hint_name))
-    }
+private fun NameField(state: EditorUiState, onNameChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    OutlinedTextField(
+        value = state.name,
+        onValueChange = onNameChange,
+        modifier = modifier,
+        label = { Text(stringResource(R.string.editor_name_label)) },
+        singleLine = true,
+        textStyle = MaterialTheme.typography.titleSmall,
+        shape = RoundedCornerShape(16.dp),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Sentences,
+            imeAction = ImeAction.Done,
+        ),
+        supportingText = {
+            Text(
+                text = stringResource(
+                    R.string.editor_name_counter,
+                    state.name.length,
+                    EditorViewModel.MAX_NAME_LENGTH,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.End,
+            )
+        },
+    )
 }
 
 @Composable
 private fun ColorSection(
     colorId: String,
-    showHint: Boolean,
     onColorSelected: (String) -> Unit,
     onPickerOpened: () -> Unit,
 ) {
     var pickerOpen by rememberSaveable { mutableStateOf(false) }
     val selected = ButtonPalette.byId(colorId)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionLabel(stringResource(R.string.editor_color_label))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            // The popup is anchored to this Box, i.e. to the square.
-            Box {
-                ColorSquare(
-                    color = selected,
-                    onClick = {
-                        pickerOpen = true
-                        onPickerOpened()
-                    },
-                )
-                ColorPickerPopup(
-                    expanded = pickerOpen,
-                    selectedId = colorId,
-                    onSelect = onColorSelected,
-                    onDismiss = { pickerOpen = false },
-                )
-            }
-            Text(
-                text = stringResource(paletteColorName(selected.id)),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-        }
-        if (showHint) TutorialHint(stringResource(R.string.hint_color))
+    // The popup is anchored to this Box, i.e. to the color key; it sits level with the name field.
+    Box(Modifier.padding(top = 4.dp)) {
+        ColorSquare(
+            color = selected,
+            onClick = {
+                pickerOpen = true
+                onPickerOpened()
+            },
+        )
+        ColorPickerPopup(
+            expanded = pickerOpen,
+            selectedId = colorId,
+            onSelect = onColorSelected,
+            onDismiss = { pickerOpen = false },
+        )
     }
 }
 
@@ -279,9 +275,8 @@ private fun ColorSection(
 private fun FxSection(state: EditorUiState, onFxSelected: (String) -> Unit, onOpenMelodies: () -> Unit) {
     var pickerOpen by rememberSaveable { mutableStateOf(false) }
     val selected = Fx.byId(state.fxId)
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionLabel(stringResource(R.string.editor_fx_label))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    EditorCard(verticalSpacing = 12.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             // The popup is anchored to this Box, i.e. to the square.
             Box {
                 FxSquare(fx = selected, onClick = { pickerOpen = true })
@@ -292,11 +287,14 @@ private fun FxSection(state: EditorUiState, onFxSelected: (String) -> Unit, onOp
                     onDismiss = { pickerOpen = false },
                 )
             }
-            Text(
-                text = stringResource(fxName(selected)),
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
+            Column {
+                SectionLabel(stringResource(R.string.editor_fx_label))
+                Text(
+                    text = stringResource(fxName(selected)),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
         if (selected == Fx.Melody) MelodyRow(melodyName = state.melodyName, onClick = onOpenMelodies)
         // Says why Save is disabled.
@@ -307,6 +305,27 @@ private fun FxSection(state: EditorUiState, onFxSelected: (String) -> Unit, onOp
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+/** A section of the editor on a card, a step up from the background. */
+@Composable
+private fun EditorCard(
+    verticalSpacing: Dp,
+    horizontalAlignment: Alignment.Horizontal = Alignment.Start,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = horizontalAlignment,
+            verticalArrangement = Arrangement.spacedBy(verticalSpacing),
+            content = content,
+        )
     }
 }
 
@@ -358,18 +377,8 @@ private fun MelodyRow(melodyName: String?, onClick: () -> Unit) {
 
 @Composable
 private fun SoundSection(state: EditorUiState, showHint: Boolean, actions: EditorActions) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    EditorCard(verticalSpacing = 12.dp, horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.fillMaxWidth()) { SectionLabel(stringResource(R.string.editor_sound_label)) }
-        RecorderControl(
-            recording = state.recording,
-            hasSound = state.hasSound,
-            onRecordTap = actions.onRecordTap,
-            onPlayTap = actions.onPlayTap,
-        )
         if (state.waveform.isNotEmpty() && state.recording is RecordingState.Idle) {
             WaveformTrimmer(
                 waveform = state.waveform,
@@ -380,11 +389,15 @@ private fun SoundSection(state: EditorUiState, showHint: Boolean, actions: Edito
                 onTrimStartChange = actions.onTrimStartChange,
                 onTrimEndChange = actions.onTrimEndChange,
                 onTrimFinished = actions.onTrimFinished,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
+        RecorderControl(
+            recording = state.recording,
+            hasSound = state.hasSound,
+            onRecordTap = actions.onRecordTap,
+            onPlayTap = actions.onPlayTap,
+        )
         if (showHint) TutorialHint(stringResource(R.string.hint_record))
     }
 }
@@ -427,7 +440,7 @@ private fun ErrorText(error: EditorError) {
 
 private val noActions = EditorActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
 
-@Preview(name = "Tutorial, empty", showBackground = true, backgroundColor = 0xFF121218, heightDp = 760, widthDp = 360)
+@Preview(name = "Tutorial, empty", showBackground = true, backgroundColor = 0xFF141019, heightDp = 760, widthDp = 360)
 @Composable
 private fun EditorTutorialPreview() {
     SoundboardTheme {
@@ -440,7 +453,7 @@ private fun EditorTutorialPreview() {
     }
 }
 
-@Preview(name = "Edit, ready to save", showBackground = true, backgroundColor = 0xFF121218, heightDp = 760, widthDp = 360)
+@Preview(name = "Edit, ready to save", showBackground = true, backgroundColor = 0xFF141019, heightDp = 760, widthDp = 360)
 @Composable
 private fun EditorEditPreview() {
     SoundboardTheme {
@@ -463,7 +476,7 @@ private fun EditorEditPreview() {
     }
 }
 
-@Preview(name = "Recording", showBackground = true, backgroundColor = 0xFF121218, heightDp = 760, widthDp = 360)
+@Preview(name = "Recording", showBackground = true, backgroundColor = 0xFF141019, heightDp = 760, widthDp = 360)
 @Composable
 private fun EditorRecordingPreview() {
     SoundboardTheme {
@@ -479,7 +492,7 @@ private fun EditorRecordingPreview() {
     }
 }
 
-@Preview(name = "Mic denied", showBackground = true, backgroundColor = 0xFF121218, heightDp = 760, widthDp = 360)
+@Preview(name = "Mic denied", showBackground = true, backgroundColor = 0xFF141019, heightDp = 760, widthDp = 360)
 @Composable
 private fun EditorDeniedPreview() {
     SoundboardTheme {

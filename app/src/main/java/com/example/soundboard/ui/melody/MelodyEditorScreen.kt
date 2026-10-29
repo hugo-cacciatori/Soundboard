@@ -358,7 +358,7 @@ private fun RenameDialog(initial: String, onConfirm: (String) -> Unit, onDismiss
     )
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF121218, widthDp = 360, heightDp = 720)
+@Preview(showBackground = true, backgroundColor = 0xFF141019, widthDp = 360, heightDp = 720)
 @Composable
 private fun MelodyEditorPreview() {
     val melody = Melody().withNote(0, 60, 2).withNote(4, 64).withNote(5, 67, 3).withNote(12, 72, 4).withNote(16, 67)

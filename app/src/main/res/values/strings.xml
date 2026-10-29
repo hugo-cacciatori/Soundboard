@@ -6,7 +6,7 @@
     <string name="title_card_tagline">Your voice, one tap away.</string>
 
     <!-- Onboarding -->
-    <string name="onboarding_welcome">Make a soundboard with your own voice.</string>
+    <string name="onboarding_welcome">Your voice,\none tap away.</string>
     <string name="onboarding_create_first">Create your first button</string>
 
     <!-- Main -->
@@ -23,7 +23,6 @@
     <string name="editor_back">Back</string>
     <string name="editor_name_label">Name</string>
     <string name="editor_name_counter">%1$d/%2$d</string>
-    <string name="editor_color_label">Color</string>
     <string name="editor_color_description">Button color: %1$s. Tap to change.</string>
     <string name="editor_sound_label">Sound</string>
     <string name="editor_fx_label">Effect</string>

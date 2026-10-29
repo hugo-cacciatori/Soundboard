@@ -58,10 +58,9 @@ fun FxSquare(fx: Fx, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val description = stringResource(R.string.editor_fx_description, stringResource(fxName(fx)))
     Box(
         modifier = modifier
-            .size(56.dp)
+            .size(52.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-            .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
@@ -69,8 +68,8 @@ fun FxSquare(fx: Fx, onClick: () -> Unit, modifier: Modifier = Modifier) {
         Icon(
             painter = painterResource(fxIcon(fx)),
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.size(32.dp),
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(28.dp),
         )
     }
 }
@@ -153,13 +152,13 @@ private fun FxTile(fx: Fx, selected: Boolean, onClick: () -> Unit) {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF121218)
+@Preview(showBackground = true, backgroundColor = 0xFF141019)
 @Composable
 private fun FxSquarePreview() {
     SoundboardTheme { FxSquare(fx = Fx.Mouseyfier, onClick = {}, modifier = Modifier.padding(16.dp)) }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF121218, widthDp = 320, heightDp = 240)
+@Preview(showBackground = true, backgroundColor = 0xFF141019, widthDp = 320, heightDp = 240)
 @Composable
 private fun FxPickerPopupPreview() {
     SoundboardTheme {

@@ -43,3 +43,7 @@ On macOS/Linux use `./gradlew` instead of `.\gradlew.bat`.
 ## Under the hood
 
 Kotlin, Jetpack Compose (Material 3), Room, and coroutines. Playback uses a custom real-time mixer (a single float `AudioTrack` stream with a look-ahead limiter) instead of `SoundPool`, so overlapping sounds never hard-clip. Effects are pure-Kotlin DSP rendered once per clip, so playback stays fast.
+
+## Credits
+
+The app ships the Bricolage Grotesque typeface, under the SIL Open Font License 1.1 (its licence is bundled in the app at `assets/licenses/BricolageGrotesque-OFL.txt`).

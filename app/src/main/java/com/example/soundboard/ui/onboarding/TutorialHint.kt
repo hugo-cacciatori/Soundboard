@@ -28,7 +28,7 @@ fun TutorialHint(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF121218)
+@Preview(showBackground = true, backgroundColor = 0xFF141019)
 @Composable
 private fun TutorialHintPreview() {
     SoundboardTheme {

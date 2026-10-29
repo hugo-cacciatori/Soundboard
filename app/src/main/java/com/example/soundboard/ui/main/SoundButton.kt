@@ -1,40 +1,56 @@
 package com.example.soundboard.ui.main
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
-import androidx.compose.foundation.layout.Box
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.soundboard.R
+import com.example.soundboard.ui.Key
+import com.example.soundboard.ui.PadCorner
 import com.example.soundboard.ui.theme.ButtonPalette
 import com.example.soundboard.ui.theme.PaletteColor
 import com.example.soundboard.ui.theme.SoundboardTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-/** One pad: tap plays, long press edits. Stateless; the pressed visuals are local UI state. */
-@OptIn(ExperimentalFoundationApi::class)
+/** How a pad arrives on the board. */
+sealed interface PadAppear {
+    /** Already there. */
+    data object None : PadAppear
+
+    /** Part of the board's entrance at launch: pops in after [delayMillis] (the stagger). */
+    data class Entrance(val delayMillis: Int) : PadAppear
+
+    /** Just saved: drops into its slot with a small bounce. */
+    data object Drop : PadAppear
+}
+
+/**
+ * One pad: a key in its palette color. Tap plays (on release, at once), long press edits. Each
+ * tap sends a ring in the pad's color outwards. [appear] animates the pad's arrival; it waits
+ * while [held] is true (the title card is still up).
+ */
 @Composable
 fun SoundButton(
     name: String,
@@ -42,46 +58,85 @@ fun SoundButton(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
+    appear: PadAppear = PadAppear.None,
+    held: Boolean = false,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.93f else 1f, label = "pad-scale")
-    // Pressed pads flash lighter; the dark content color keeps its contrast on the lighter fill.
-    val container by animateColorAsState(
-        targetValue = if (pressed) lerp(color.container, Color.White, 0.4f) else color.container,
-        label = "pad-color",
-    )
+    val scope = rememberCoroutineScope()
+    // 1 = no ring showing.
+    val ring = remember { Animatable(1f) }
+    val arrival = remember { Animatable(if (appear == PadAppear.None) 1f else 0f) }
+    LaunchedEffect(appear, held) {
+        if (held || arrival.value == 1f) return@LaunchedEffect
+        when (appear) {
+            PadAppear.None -> arrival.snapTo(1f)
+            is PadAppear.Entrance -> {
+                delay(appear.delayMillis.toLong())
+                arrival.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
+            }
+            PadAppear.Drop -> arrival.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessLow))
+        }
+    }
+    val ringColor = color.container
 
-    Box(
+    Key(
+        face = color.container,
+        lip = color.lip,
+        contentColor = color.content,
+        onClick = {
+            onClick()
+            scope.launch {
+                ring.snapTo(0f)
+                ring.animateTo(1f, tween(RING_MILLIS, easing = FastOutSlowInEasing))
+            }
+        },
+        onLongClick = onLongClick,
+        onClickLabel = stringResource(R.string.button_play_label),
+        onLongClickLabel = stringResource(R.string.button_edit_label),
         modifier = modifier
-            .aspectRatio(1.1f)
-            .scale(scale)
-            .clip(RoundedCornerShape(24.dp))
-            .background(container)
-            .combinedClickable(
-                interactionSource = interactionSource,
-                indication = null,
-                role = Role.Button,
-                onClickLabel = stringResource(R.string.button_play_label),
-                onLongClickLabel = stringResource(R.string.button_edit_label),
-                onClick = onClick,
-                onLongClick = onLongClick,
-            )
-            .padding(12.dp),
-        contentAlignment = Alignment.Center,
+            .graphicsLayer {
+                val t = arrival.value
+                alpha = t.coerceIn(0f, 1f)
+                if (appear == PadAppear.Drop) {
+                    translationY = (1f - t) * -40.dp.toPx()
+                } else {
+                    val s = 0.6f + 0.4f * t
+                    scaleX = s
+                    scaleY = s
+                }
+            }
+            .drawBehind {
+                // Read the ring here so it only invalidates drawing, not composition.
+                val p = ring.value
+                if (p >= 1f) return@drawBehind
+                val grow = 0.2f * p
+                val dx = size.width * grow / 2
+                val dy = size.height * grow / 2
+                val stroke = 3.dp.toPx()
+                drawRoundRect(
+                    color = ringColor.copy(alpha = 0.9f * (1f - p)),
+                    topLeft = Offset(-dx, -dy),
+                    size = Size(size.width + 2 * dx, size.height + 2 * dy),
+                    cornerRadius = CornerRadius(PadCorner.toPx() * (1 + grow)),
+                    style = Stroke(stroke),
+                )
+            }
+            .aspectRatio(1f),
     ) {
         Text(
             text = name,
-            color = color.content,
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(12.dp),
         )
     }
 }
 
-@Preview(name = "Pad", showBackground = true, backgroundColor = 0xFF121218)
+/** The playing ring grows about 20 % and fades over this long. */
+private const val RING_MILLIS = 700
+
+@Preview(name = "Pad", showBackground = true, backgroundColor = 0xFF141019)
 @Composable
 private fun SoundButtonPreview() {
     SoundboardTheme {
@@ -95,7 +150,7 @@ private fun SoundButtonPreview() {
     }
 }
 
-@Preview(name = "Pad, long name", showBackground = true, backgroundColor = 0xFF121218)
+@Preview(name = "Pad, long name", showBackground = true, backgroundColor = 0xFF141019)
 @Composable
 private fun SoundButtonLongNamePreview() {
     SoundboardTheme {

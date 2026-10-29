@@ -244,7 +244,7 @@ fun melodySummary(melody: Melody): String = stringResource(
     pluralStringResource(R.plurals.melody_note_count, melody.notes.size, melody.notes.size),
 )
 
-@Preview(showBackground = true, backgroundColor = 0xFF121218, widthDp = 360, heightDp = 480)
+@Preview(showBackground = true, backgroundColor = 0xFF141019, widthDp = 360, heightDp = 480)
 @Composable
 private fun MelodyPickerPreview() {
     val melodies = listOf(

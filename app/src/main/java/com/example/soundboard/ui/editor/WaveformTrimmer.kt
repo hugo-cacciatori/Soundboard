@@ -161,7 +161,7 @@ fun WaveformTrimmer(
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF121218, widthDp = 360)
+@Preview(showBackground = true, backgroundColor = 0xFF141019, widthDp = 360)
 @Composable
 private fun WaveformTrimmerPreview() {
     val fake = List(96) { i -> (0.15f + 0.85f * abs(sin(i / 7f)) * (if (i in 20..75) 1f else 0.15f)) }

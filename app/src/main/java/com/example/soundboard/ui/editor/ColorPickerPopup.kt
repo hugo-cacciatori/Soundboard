@@ -28,6 +28,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.soundboard.R
+import com.example.soundboard.ui.Key
+import com.example.soundboard.ui.KeyLip
 import com.example.soundboard.ui.theme.ButtonPalette
 import com.example.soundboard.ui.theme.PaletteColor
 import com.example.soundboard.ui.theme.SoundboardTheme
@@ -51,22 +53,22 @@ fun paletteColorName(id: String): Int = when (id) {
     else -> R.string.color_violet
 }
 
-/** The colored square that shows the current color and opens the picker when tapped. */
+/** The colored key that shows the current color and opens the picker when tapped. */
 @Composable
 fun ColorSquare(color: PaletteColor, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val description = stringResource(
         R.string.editor_color_description,
         stringResource(paletteColorName(color.id)),
     )
-    Box(
+    Key(
+        face = color.container,
+        lip = color.lip,
+        onClick = onClick,
+        shape = RoundedCornerShape(18.dp),
         modifier = modifier
-            .size(56.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(color.container)
-            .border(2.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
-            .clickable(role = Role.Button, onClick = onClick)
+            .size(width = 56.dp, height = 56.dp + KeyLip)
             .semantics { contentDescription = description },
-    )
+    ) {}
 }
 
 /**
@@ -128,13 +130,13 @@ private fun Swatch(color: PaletteColor, selected: Boolean, onClick: () -> Unit) 
     }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF121218)
+@Preview(showBackground = true, backgroundColor = 0xFF141019)
 @Composable
 private fun ColorSquarePreview() {
     SoundboardTheme { ColorSquare(color = ButtonPalette.default, onClick = {}, modifier = Modifier.padding(16.dp)) }
 }
 
-@Preview(showBackground = true, backgroundColor = 0xFF121218, widthDp = 300, heightDp = 300)
+@Preview(showBackground = true, backgroundColor = 0xFF141019, widthDp = 300, heightDp = 300)
 @Composable
 private fun ColorPickerPopupPreview() {
     SoundboardTheme {

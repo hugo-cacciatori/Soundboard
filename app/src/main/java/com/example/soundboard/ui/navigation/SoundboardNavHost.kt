@@ -7,6 +7,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -33,6 +34,7 @@ import com.example.soundboard.ui.melody.MelodyPickerViewModel
 import com.example.soundboard.ui.editor.EditorRoute
 import com.example.soundboard.ui.editor.EditorViewModel
 import com.example.soundboard.ui.launch.TITLE_CARD_MILLIS
+import com.example.soundboard.ui.launch.LocalTitleCardUp
 import com.example.soundboard.ui.launch.TitleCard
 import com.example.soundboard.ui.main.MainRoute
 import com.example.soundboard.ui.main.MainViewModel
@@ -94,7 +96,9 @@ fun SoundboardNavHost(container: AppContainer) {
     }
 
     Box(Modifier.fillMaxSize()) {
-        startRoute?.let { start -> SoundboardNavGraph(container, start) }
+        CompositionLocalProvider(LocalTitleCardUp provides (showTitleCard || startRoute == null)) {
+            startRoute?.let { start -> SoundboardNavGraph(container, start) }
+        }
         // Stays up until the first screen is ready, then fades to reveal it.
         AnimatedVisibility(
             visible = showTitleCard || startRoute == null,

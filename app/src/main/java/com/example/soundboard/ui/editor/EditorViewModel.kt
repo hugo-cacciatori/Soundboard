@@ -38,8 +38,8 @@ import kotlinx.coroutines.withContext
 sealed interface RecordingState {
     data object Idle : RecordingState
 
-    /** [progress] runs from 0 to 1 over [AudioConfig.MAX_CLIP_SECONDS]. */
-    data class Recording(val progress: Float, val secondsLeft: Int) : RecordingState
+    /** [progress] runs from 0 to 1 over [AudioConfig.MAX_CLIP_SECONDS]; [level] is the live input peak, 0 to 1. */
+    data class Recording(val progress: Float, val secondsLeft: Int, val level: Float = 0f) : RecordingState
 
     /** Running [SoundProcessor] on the captured audio. */
     data object Processing : RecordingState
@@ -299,7 +299,7 @@ class EditorViewModel(
             )
         }
         viewModelScope.launch {
-            val outcome = newRecorder.record { captured -> onCaptureProgress(captured) }
+            val outcome = newRecorder.record { captured, level -> onCaptureProgress(captured, level) }
             recorder = null
             when (outcome) {
                 RecordOutcome.Failed -> _state.update {
@@ -310,13 +310,13 @@ class EditorViewModel(
         }
     }
 
-    private fun onCaptureProgress(capturedSamples: Int) {
+    private fun onCaptureProgress(capturedSamples: Int, level: Float) {
         val progress = (capturedSamples.toFloat() / AudioConfig.MAX_CLIP_SAMPLES).coerceIn(0f, 1f)
         val secondsLeft = AudioConfig.MAX_CLIP_SECONDS -
             (capturedSamples / AudioConfig.SAMPLE_RATE).coerceAtMost(AudioConfig.MAX_CLIP_SECONDS)
         _state.update { s ->
             if (s.recording is RecordingState.Recording) {
-                s.copy(recording = RecordingState.Recording(progress, secondsLeft))
+                s.copy(recording = RecordingState.Recording(progress, secondsLeft, level))
             } else {
                 s
             }

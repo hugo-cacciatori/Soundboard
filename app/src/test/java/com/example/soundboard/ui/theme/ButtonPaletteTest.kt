@@ -22,6 +22,17 @@ class ButtonPaletteTest {
     }
 
     @Test
+    fun everyLipIsADarkerShadeUnderItsFace() {
+        val white = 0xFFFFFFFF.toInt()
+        for (c in ButtonPalette.colors) {
+            // Darker: less contrast against white than the face has.
+            val face = ButtonPalette.contrastRatio(c.containerArgb, white)
+            val lip = ButtonPalette.contrastRatio(c.lipArgb, white)
+            assertTrue("${c.id}: lip not darker than face", lip > face * 1.5)
+        }
+    }
+
+    @Test
     fun idsAreUniqueAndSizeFitsThePicker() {
         val ids = ButtonPalette.colors.map { it.id }
         assertEquals(ids.size, ids.toSet().size)

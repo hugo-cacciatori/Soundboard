@@ -1,6 +1,9 @@
 package com.example.soundboard.ui.editor
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,27 +13,35 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.soundboard.R
+import com.example.soundboard.ui.Key
+import com.example.soundboard.ui.theme.ErrorLip
 import com.example.soundboard.ui.theme.SoundboardTheme
 
 /**
- * Tap to start, tap to stop (auto-stops at 5 s). While recording a progress ring fills up and
- * the status line counts down. Once a sound exists a play button appears next to the mic, and
- * the mic becomes "record again".
+ * Tap to start, tap to stop (auto-stops at 5 s). The record key is red; while recording a ring
+ * around it fills up, the key pulses with the live voice level and the status line counts down.
+ * Once a sound exists a play button appears beside it, and the key means "record again".
  */
 @Composable
 fun RecorderControl(
@@ -43,12 +54,12 @@ fun RecorderControl(
     Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            horizontalArrangement = Arrangement.spacedBy(28.dp),
         ) {
-            RecordButton(recording = recording, hasSound = hasSound, onClick = onRecordTap)
             if (hasSound && recording is RecordingState.Idle) {
                 PlayButton(onClick = onPlayTap)
             }
+            RecordButton(recording = recording, hasSound = hasSound, onClick = onRecordTap)
         }
         Text(
             text = statusText(recording, hasSound),
@@ -73,16 +84,6 @@ private fun statusText(recording: RecordingState, hasSound: Boolean): String = w
 private fun RecordButton(recording: RecordingState, hasSound: Boolean, onClick: () -> Unit) {
     val isRecording = recording is RecordingState.Recording
     val busy = recording is RecordingState.Processing
-    val container = when {
-        isRecording -> MaterialTheme.colorScheme.errorContainer
-        hasSound -> MaterialTheme.colorScheme.surfaceContainerHighest
-        else -> MaterialTheme.colorScheme.primary
-    }
-    val iconTint = when {
-        isRecording -> MaterialTheme.colorScheme.onErrorContainer
-        hasSound -> MaterialTheme.colorScheme.onSurface
-        else -> MaterialTheme.colorScheme.onPrimary
-    }
     val label = stringResource(
         when {
             isRecording -> R.string.record_stop
@@ -90,43 +91,66 @@ private fun RecordButton(recording: RecordingState, hasSound: Boolean, onClick: 
             else -> R.string.record_start
         },
     )
+    // Smoothed, so the pulse follows the voice without flicker.
+    val level by animateFloatAsState(
+        targetValue = (recording as? RecordingState.Recording)?.level ?: 0f,
+        animationSpec = tween(LEVEL_SMOOTHING_MILLIS),
+        label = "record-level",
+    )
 
-    Box(modifier = Modifier.size(104.dp), contentAlignment = Alignment.Center) {
+    Box(modifier = Modifier.size(108.dp), contentAlignment = Alignment.Center) {
         // Progress ring: the full circle is the 5 s budget.
+        val ringModifier = Modifier.fillMaxSize()
         when (recording) {
             is RecordingState.Recording -> CircularProgressIndicator(
                 progress = { recording.progress },
-                modifier = Modifier.fillMaxSize(),
+                modifier = ringModifier,
                 color = MaterialTheme.colorScheme.error,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                strokeWidth = 6.dp,
+                trackColor = MaterialTheme.colorScheme.outlineVariant,
+                strokeWidth = 5.dp,
+                strokeCap = StrokeCap.Round,
             )
             RecordingState.Processing -> CircularProgressIndicator(
-                modifier = Modifier.fillMaxSize(),
-                strokeWidth = 6.dp,
+                modifier = ringModifier,
+                color = MaterialTheme.colorScheme.error,
+                strokeWidth = 5.dp,
             )
-            RecordingState.Idle -> Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(3.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
+            RecordingState.Idle -> CircularProgressIndicator(
+                progress = { 0f },
+                modifier = ringModifier,
+                trackColor = MaterialTheme.colorScheme.outlineVariant,
+                strokeWidth = 5.dp,
             )
         }
-        Box(
+        Key(
+            face = MaterialTheme.colorScheme.error,
+            lip = ErrorLip,
+            onClick = onClick,
+            enabled = !busy,
+            shape = CircleShape,
+            lipHeight = 5.dp,
             modifier = Modifier
-                .size(80.dp)
-                .clip(CircleShape)
-                .background(container)
-                .clickable(enabled = !busy, role = Role.Button, onClick = onClick),
-            contentAlignment = Alignment.Center,
+                .graphicsLayer {
+                    val pulse = 1f + PULSE_SCALE * level.coerceIn(0f, 1f)
+                    scaleX = pulse
+                    scaleY = pulse
+                }
+                .size(width = 80.dp, height = 85.dp)
+                .semantics { contentDescription = label },
         ) {
-            Icon(
-                painter = painterResource(if (isRecording) R.drawable.ic_stop else R.drawable.ic_mic),
-                contentDescription = label,
-                tint = iconTint,
-                modifier = Modifier.size(36.dp),
-            )
+            if (isRecording) {
+                Box(
+                    Modifier
+                        .size(26.dp)
+                        .background(MaterialTheme.colorScheme.onError, RoundedCornerShape(6.dp)),
+                )
+            } else {
+                Icon(
+                    painter = painterResource(R.drawable.ic_mic),
+                    contentDescription = null,
+                    modifier = Modifier.size(36.dp),
+                )
+            }
         }
     }
 }
@@ -135,22 +159,27 @@ private fun RecordButton(recording: RecordingState, hasSound: Boolean, onClick: 
 private fun PlayButton(onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(64.dp)
+            .size(56.dp)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.secondary)
+            .border(2.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
             .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painterResource(R.drawable.ic_play),
             contentDescription = stringResource(R.string.record_play),
-            tint = MaterialTheme.colorScheme.onSecondary,
-            modifier = Modifier.size(32.dp),
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(26.dp),
         )
     }
 }
 
-@Preview(name = "Idle, no sound", showBackground = true, backgroundColor = 0xFF121218)
+/** How much a full-scale voice grows the record key. */
+private const val PULSE_SCALE = 0.12f
+
+private const val LEVEL_SMOOTHING_MILLIS = 90
+
+@Preview(name = "Idle, no sound", showBackground = true, backgroundColor = 0xFF141019)
 @Composable
 private fun RecorderIdlePreview() {
     SoundboardTheme {
@@ -158,7 +187,7 @@ private fun RecorderIdlePreview() {
     }
 }
 
-@Preview(name = "Recording", showBackground = true, backgroundColor = 0xFF121218)
+@Preview(name = "Recording", showBackground = true, backgroundColor = 0xFF141019)
 @Composable
 private fun RecorderRecordingPreview() {
     SoundboardTheme {
@@ -172,7 +201,7 @@ private fun RecorderRecordingPreview() {
     }
 }
 
-@Preview(name = "Has sound", showBackground = true, backgroundColor = 0xFF121218)
+@Preview(name = "Has sound", showBackground = true, backgroundColor = 0xFF141019)
 @Composable
 private fun RecorderReadyPreview() {
     SoundboardTheme {
