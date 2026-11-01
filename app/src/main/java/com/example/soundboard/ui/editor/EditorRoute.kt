@@ -54,6 +54,7 @@ fun EditorRoute(
             when (event) {
                 EditorEvent.Saved -> onFinished(true)
                 EditorEvent.Deleted -> onFinished(false)
+                is EditorEvent.Share -> context.startActivity(event.intent)
             }
         }
     }
@@ -97,6 +98,7 @@ fun EditorRoute(
             onTrimEndChange = viewModel::onTrimEndChange,
             onTrimFinished = viewModel::onTrimFinished,
             onSave = viewModel::onSave,
+            onShare = viewModel::onShare,
             onDelete = viewModel::onDelete,
             onBack = onCancel,
             onOpenSettings = {

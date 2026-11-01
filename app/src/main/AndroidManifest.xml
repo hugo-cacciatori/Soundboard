@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Only permission: the microphone, requested the first time the user taps record.
-         No INTERNET permission: the app is fully offline. -->
+         No INTERNET permission: the app is fully offline (sharing goes through the share sheet). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
@@ -28,6 +28,17 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Hands shared MP3 clips (cache/shared/) to the app the user picks in the share sheet. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.share"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/share_paths" />
+        </provider>
     </application>
 
 </manifest>

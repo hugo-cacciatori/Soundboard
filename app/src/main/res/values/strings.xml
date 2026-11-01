@@ -29,6 +29,9 @@
     <string name="editor_fx_description">Sound effect: %1$s. Tap to change.</string>
     <string name="editor_save">Save</string>
     <string name="editor_delete">Delete button</string>
+    <string name="editor_share">Share sound</string>
+    <string name="editor_share_failed">Couldn\'t prepare the sound for sharing. Please try again.</string>
+    <string name="share_default_name">Sound</string>
     <string name="editor_save_failed">Couldn\'t save the button. Please try again.</string>
     <string name="editor_skip_tips">Skip tips</string>
 

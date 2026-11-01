@@ -1,6 +1,7 @@
 package com.example.soundboard
 
 import android.content.Context
+import com.example.soundboard.audio.ClipSharer
 import com.example.soundboard.audio.MixerEngine
 import com.example.soundboard.audio.SoundRecorder
 import com.example.soundboard.data.AppPreferences
@@ -26,6 +27,7 @@ class AppContainer(context: Context) {
     val melodyRepository = MelodyRepository(database.melodyDao(), buttonRepository, applicationScope)
     val preferences = AppPreferences(appContext)
     val mixerEngine = MixerEngine()
+    val clipSharer = ClipSharer(appContext)
 
     /** A recorder is single-use: create a fresh one for every recording. */
     fun newRecorder() = SoundRecorder()

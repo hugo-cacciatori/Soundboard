@@ -1,11 +1,13 @@
 package com.example.soundboard.ui.editor
 
+import android.content.Intent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.soundboard.AppContainer
 import com.example.soundboard.audio.AudioConfig
+import com.example.soundboard.audio.ClipSharer
 import com.example.soundboard.audio.MixerEngine
 import com.example.soundboard.audio.RecordOutcome
 import com.example.soundboard.audio.SoundRecorder
@@ -45,7 +47,7 @@ sealed interface RecordingState {
     data object Processing : RecordingState
 }
 
-enum class EditorError { TooQuiet, RecordFailed, SaveFailed }
+enum class EditorError { TooQuiet, RecordFailed, SaveFailed, ShareFailed }
 
 data class EditorUiState(
     /** True while an existing button is being loaded. */
@@ -59,6 +61,8 @@ data class EditorUiState(
     val hasSound: Boolean = false,
     val recording: RecordingState = RecordingState.Idle,
     val saving: Boolean = false,
+    /** Encoding the clip for the share sheet. */
+    val sharing: Boolean = false,
     val error: EditorError? = null,
     /** Peak overview of the untrimmed sound, each value in [0, 1]. Empty when there is no sound. */
     val waveform: List<Float> = emptyList(),
@@ -83,6 +87,10 @@ data class EditorUiState(
         get() = !loading && !saving && recording is RecordingState.Idle && name.isNotBlank() && hasSound &&
             !trimTooQuiet && !melodyMissing
 
+    /** Share needs exactly what Play would play (a usable sound and, for Melody, a melody), and nothing in flight. */
+    val canShare: Boolean
+        get() = !loading && !sharing && recording is RecordingState.Idle && hasSound && !trimTooQuiet && !melodyMissing
+
     val selectedDurationMs: Int
         get() = ((trimEnd - trimStart) * sourceDurationMs).roundToInt()
 }
@@ -90,6 +98,9 @@ data class EditorUiState(
 sealed interface EditorEvent {
     data object Saved : EditorEvent
     data object Deleted : EditorEvent
+
+    /** Open the share sheet with this chooser intent. */
+    data class Share(val intent: Intent) : EditorEvent
 }
 
 /**
@@ -111,6 +122,7 @@ class EditorViewModel(
     private val repository: ButtonRepository,
     private val melodies: MelodyRepository,
     private val engine: MixerEngine,
+    private val sharer: ClipSharer,
     private val recorderFactory: () -> SoundRecorder,
     private val processingDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
@@ -207,6 +219,33 @@ class EditorViewModel(
             if (_state.value.trimTooQuiet) return@launch
             val clip = pendingSound ?: source ?: return@launch
             engine.play(previewFor(clip, Fx.byId(_state.value.fxId)).await())
+        }
+    }
+
+    /** Encodes what Play plays (selection and effect) to MP3 and asks the screen to share it. */
+    fun onShare() {
+        if (!_state.value.canShare) return
+        _state.update { it.copy(sharing = true, error = null) }
+        viewModelScope.launch {
+            try {
+                trimJob?.join()
+                val clip = pendingSound ?: source
+                val rendered = clip?.let { previewFor(it, Fx.byId(_state.value.fxId)).await() }
+                val name = _state.value.name
+                val intent = rendered?.let { withContext(processingDispatcher) { sharer.prepare(it, name) } }
+                if (intent != null) {
+                    _events.send(EditorEvent.Share(intent))
+                } else {
+                    _state.update { it.copy(error = EditorError.ShareFailed) }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Share failed", e)
+                _state.update { it.copy(error = EditorError.ShareFailed) }
+            } finally {
+                _state.update { it.copy(sharing = false) }
+            }
         }
     }
 
@@ -426,6 +465,7 @@ class EditorViewModel(
                     repository = container.buttonRepository,
                     melodies = container.melodyRepository,
                     engine = container.mixerEngine,
+                    sharer = container.clipSharer,
                     recorderFactory = container::newRecorder,
                 ) as T
             }

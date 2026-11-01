@@ -42,6 +42,14 @@ object AudioConfig {
     /** Frames rendered per mixer buffer. 240 frames = 5 ms at 48 kHz. */
     const val MIXER_BUFFER_FRAMES = 240
 
+    /**
+     * Shared clips (SPEC §2, "Sharing"): mono CBR MP3 at 48 kbps and 24 kHz (MPEG-2 Layer III,
+     * about 6 KB per second), peaking at -1 dBFS so lossy encoding never clips in the player.
+     */
+    const val SHARE_MP3_KBPS = 48
+    const val SHARE_MP3_SAMPLE_RATE = 24_000
+    const val SHARE_PEAK_DBFS = -1.0
+
     /** Linear amplitude of [PEAK_TARGET_DBFS] (about 0.98855). */
     val PEAK_TARGET_LINEAR: Float = 10.0.pow(PEAK_TARGET_DBFS / 20.0).toFloat()
 }

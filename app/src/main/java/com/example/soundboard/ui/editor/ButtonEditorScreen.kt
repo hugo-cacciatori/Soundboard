@@ -77,6 +77,7 @@ data class EditorActions(
     val onTrimEndChange: (Float) -> Unit,
     val onTrimFinished: () -> Unit,
     val onSave: () -> Unit,
+    val onShare: () -> Unit,
     val onDelete: () -> Unit,
     val onBack: () -> Unit,
     val onOpenSettings: () -> Unit,
@@ -97,8 +98,10 @@ fun ButtonEditorScreen(
             EditorToolbar(
                 isEditing = state.isEditing,
                 canSave = state.canSave,
+                canShare = state.canShare,
                 onBack = actions.onBack,
                 onSave = actions.onSave,
+                onShare = actions.onShare,
             )
         },
         containerColor = Color.Transparent,
@@ -178,7 +181,14 @@ fun ButtonEditorScreen(
 }
 
 @Composable
-private fun EditorToolbar(isEditing: Boolean, canSave: Boolean, onBack: () -> Unit, onSave: () -> Unit) {
+private fun EditorToolbar(
+    isEditing: Boolean,
+    canSave: Boolean,
+    canShare: Boolean,
+    onBack: () -> Unit,
+    onSave: () -> Unit,
+    onShare: () -> Unit,
+) {
     Surface(color = Color.Transparent) {
         Row(
             modifier = Modifier
@@ -201,6 +211,13 @@ private fun EditorToolbar(isEditing: Boolean, canSave: Boolean, onBack: () -> Un
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f),
             )
+            IconButton(onClick = onShare, enabled = canShare) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_share),
+                    contentDescription = stringResource(R.string.editor_share),
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = if (canShare) 1f else 0.38f),
+                )
+            }
             // Always in reach, also while the keyboard is up.
             PrimaryKey(onClick = onSave, enabled = canSave, corner = 16.dp, modifier = Modifier.heightIn(min = 48.dp)) {
                 Text(
@@ -431,6 +448,7 @@ private fun ErrorText(error: EditorError) {
                 EditorError.TooQuiet -> R.string.record_error_too_quiet
                 EditorError.RecordFailed -> R.string.record_error_failed
                 EditorError.SaveFailed -> R.string.editor_save_failed
+                EditorError.ShareFailed -> R.string.editor_share_failed
             },
         ),
         style = MaterialTheme.typography.bodyLarge,
@@ -439,7 +457,7 @@ private fun ErrorText(error: EditorError) {
     )
 }
 
-private val noActions = EditorActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
+private val noActions = EditorActions({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
 
 @Preview(name = "Tutorial, empty", showBackground = true, backgroundColor = 0xFF141019, heightDp = 760, widthDp = 360)
 @Composable
