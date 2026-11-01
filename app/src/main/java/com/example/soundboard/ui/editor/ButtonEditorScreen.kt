@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.soundboard.R
 import com.example.soundboard.audio.dsp.fx.Fx
+import com.example.soundboard.ui.Key
 import com.example.soundboard.ui.PrimaryKey
 import com.example.soundboard.ui.onboarding.TutorialHint
 import com.example.soundboard.ui.theme.ButtonPalette
@@ -98,10 +99,8 @@ fun ButtonEditorScreen(
             EditorToolbar(
                 isEditing = state.isEditing,
                 canSave = state.canSave,
-                canShare = state.canShare,
                 onBack = actions.onBack,
                 onSave = actions.onSave,
-                onShare = actions.onShare,
             )
         },
         containerColor = Color.Transparent,
@@ -181,14 +180,7 @@ fun ButtonEditorScreen(
 }
 
 @Composable
-private fun EditorToolbar(
-    isEditing: Boolean,
-    canSave: Boolean,
-    canShare: Boolean,
-    onBack: () -> Unit,
-    onSave: () -> Unit,
-    onShare: () -> Unit,
-) {
+private fun EditorToolbar(isEditing: Boolean, canSave: Boolean, onBack: () -> Unit, onSave: () -> Unit) {
     Surface(color = Color.Transparent) {
         Row(
             modifier = Modifier
@@ -211,13 +203,6 @@ private fun EditorToolbar(
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.weight(1f),
             )
-            IconButton(onClick = onShare, enabled = canShare) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_share),
-                    contentDescription = stringResource(R.string.editor_share),
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = if (canShare) 1f else 0.38f),
-                )
-            }
             // Always in reach, also while the keyboard is up.
             PrimaryKey(onClick = onSave, enabled = canSave, corner = 16.dp, modifier = Modifier.heightIn(min = 48.dp)) {
                 Text(
@@ -417,6 +402,40 @@ private fun SoundSection(state: EditorUiState, showHint: Boolean, actions: Edito
             onPlayTap = actions.onPlayTap,
         )
         if (showHint) TutorialHint(stringResource(R.string.hint_record))
+        if (state.hasSound && state.recording is RecordingState.Idle) {
+            ShareKey(enabled = state.canShare, sharing = state.sharing, onClick = actions.onShare)
+        }
+    }
+}
+
+/** Teal, full width and labelled, so sharing stands out from Save (violet) and record (coral). */
+@Composable
+private fun ShareKey(enabled: Boolean, sharing: Boolean, onClick: () -> Unit) {
+    val teal = ButtonPalette.byId("teal")
+    Key(
+        face = teal.container,
+        lip = teal.lip,
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(18.dp),
+        contentColor = teal.content,
+        lipHeight = 5.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Icon(painterResource(R.drawable.ic_share), contentDescription = null, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.size(10.dp))
+            Text(
+                text = stringResource(if (sharing) R.string.editor_share_preparing else R.string.editor_share),
+                style = MaterialTheme.typography.labelLarge,
+            )
+        }
     }
 }
 
