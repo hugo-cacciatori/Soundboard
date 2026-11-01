@@ -157,4 +157,41 @@ class MixerCoreTest {
         core.stop(constantClip(1000, 48_000)) // equal content, different instance
         assertEquals(1, core.activeVoiceCount)
     }
+
+    @Test
+    fun restartKeepsOneVoicePerClipAndLeavesOthersPlaying() {
+        val core = MixerCore()
+        val tapped = constantClip(1000, 48_000)
+        val other = constantClip(2000, 48_000)
+        core.play(other)
+        for (i in 1..5) {
+            core.restart(tapped)
+            assertEquals(2, core.activeVoiceCount)
+            render(core, 1000)
+        }
+        // Only one copy of the tapped clip plus the other clip remain audible.
+        assertEquals(3000 / 32768f, render(core, 1000).last(), 1e-4f)
+    }
+
+    @Test
+    fun restartFadesTheOldPlaybackWithoutAClick() {
+        val core = MixerCore()
+        val latency = Limiter().latencyFrames
+        val level = 3277
+        // Silent for its first 1000 frames, so only the old copy's fade is heard right after restart.
+        val clip = ShortArray(40_000) { if (it >= 1000) level.toShort() else 0 }
+        core.play(clip)
+        render(core, 2000)
+        core.restart(clip)
+        assertEquals(1, core.activeVoiceCount)
+        val out = render(core, 1000)
+        val start = level / 32768f
+        var previous = start
+        for (i in latency until out.size) {
+            assertTrue("fade must not rise at $i", out[i] <= previous + 1e-6f)
+            assertTrue("jump at $i", previous - out[i] < start / 100f)
+            previous = out[i]
+        }
+        assertEquals(0f, out.last(), 1e-6f)
+    }
 }

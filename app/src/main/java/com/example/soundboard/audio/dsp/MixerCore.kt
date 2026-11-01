@@ -65,8 +65,8 @@ class MixerCore(
     }
 
     /**
-     * Fades out (about 5 ms, like a steal) every voice playing this exact [clip] instance. Only the
-     * melody editor's Stop uses it: a tapped button is never cut.
+     * Fades out (about 5 ms, like a steal) every voice playing this exact [clip] instance. Used by
+     * the melody editor's Stop and by [restart].
      */
     fun stop(clip: ShortArray) {
         for (v in voices) {
@@ -77,6 +77,15 @@ class MixerCore(
             v.clip = null
             activeVoiceCount--
         }
+    }
+
+    /**
+     * Fades out the voices playing this exact [clip] instance, then starts it again from the
+     * beginning: a button tapped again restarts instead of overlapping itself.
+     */
+    fun restart(clip: ShortArray) {
+        stop(clip)
+        play(clip)
     }
 
     /** Renders [frames] mono samples into [out] (overwritten). */

@@ -47,10 +47,10 @@ class MainViewModel(
     fun onPlay(buttonId: String) {
         val clip = repository.cachedClip(buttonId)
         if (clip != null) {
-            engine.play(clip)
+            engine.restart(clip)
         } else {
             // Not preloaded yet (just after startup): load it off the main thread, then play.
-            viewModelScope.launch { repository.loadPlayableClip(buttonId)?.let(engine::play) }
+            viewModelScope.launch { repository.loadPlayableClip(buttonId)?.let(engine::restart) }
         }
     }
 
