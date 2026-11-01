@@ -2,12 +2,12 @@
 
 > 🎉 **Just for fun.** Soundboard is an entertainment app. Record silly sounds with your own voice, put them on colorful buttons, and tap away. It is not a professional audio tool, a voice recorder for important recordings, or an accessibility/communication aid.
 
-An Android app that turns your voice into a personal soundboard. Create a button, give it a name and a color, record a short sound (up to 5 seconds), and tap it to play it back. Tap another button and the sounds stack; tap the same button again and its sound starts over.
+An Android app that turns your voice into a personal soundboard. Create a button, give it a name and a color, record a short sound (up to 5 seconds), and tap it to play it back. Each tap stops whatever is playing and starts the new sound right away.
 
 ## Features
 
 - **Your voice, your buttons.** Every button plays a clip you recorded yourself.
-- **Instant replay.** Tap to play, tap again to start the sound over. Different buttons play together, so you can layer them.
+- **Instant replay.** Tap to play. Any tap, on the same button or another, cuts the sound that was playing and starts the new one from the beginning.
 - **Loud but never distorted.** Every clip is leveled automatically, and a built-in limiter keeps stacked sounds from crackling.
 - **Trim.** Drag the edges of the waveform to keep just the good part.
 - **Effects.** Give a button an effect to change how it sounds: the **Mouseyfier** turns your voice into a tiny cartoon mouse 🐭, **Robot** holds your whole sentence on one in-tune note with a metallic buzz 🤖, and **Melody** makes your sound sing a tune you arrange yourself on a small four-bar grid 🎵. Melodies are saved, so you can reuse one on other buttons.
@@ -42,7 +42,7 @@ On macOS/Linux use `./gradlew` instead of `.\gradlew.bat`.
 
 ## Under the hood
 
-Kotlin, Jetpack Compose (Material 3), Room, and coroutines. Playback uses a custom real-time mixer (a single float `AudioTrack` stream with a look-ahead limiter) instead of `SoundPool`, so overlapping sounds never hard-clip. Effects are pure-Kotlin DSP rendered once per clip, so playback stays fast.
+Kotlin, Jetpack Compose (Material 3), Room, and coroutines. Playback uses a custom real-time mixer (a single float `AudioTrack` stream with a look-ahead limiter) instead of `SoundPool`, so cutting from one sound to the next never clicks or hard-clips. Effects are pure-Kotlin DSP rendered once per clip, so playback stays fast.
 
 ## Credits
 

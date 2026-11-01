@@ -159,33 +159,33 @@ class MixerCoreTest {
     }
 
     @Test
-    fun restartKeepsOneVoicePerClipAndLeavesOthersPlaying() {
+    fun playAloneLeavesOnlyTheNewClipPlaying() {
         val core = MixerCore()
-        val tapped = constantClip(1000, 48_000)
-        val other = constantClip(2000, 48_000)
-        core.play(other)
-        for (i in 1..5) {
-            core.restart(tapped)
-            assertEquals(2, core.activeVoiceCount)
-            render(core, 1000)
-        }
-        // Only one copy of the tapped clip plus the other clip remain audible.
-        assertEquals(3000 / 32768f, render(core, 1000).last(), 1e-4f)
+        val first = constantClip(1000, 48_000)
+        val second = constantClip(2000, 48_000)
+        core.play(first)
+        core.play(second)
+        render(core, 1000)
+        core.playAlone(first)
+        assertEquals(1, core.activeVoiceCount)
+        render(core, 1000)
+        core.playAlone(second)
+        assertEquals(1, core.activeVoiceCount)
+        assertEquals(2000 / 32768f, render(core, 1000).last(), 1e-4f)
     }
 
     @Test
-    fun restartFadesTheOldPlaybackWithoutAClick() {
+    fun playAloneFadesWhatWasPlayingWithoutAClick() {
         val core = MixerCore()
         val latency = Limiter().latencyFrames
         val level = 3277
-        // Silent for its first 1000 frames, so only the old copy's fade is heard right after restart.
-        val clip = ShortArray(40_000) { if (it >= 1000) level.toShort() else 0 }
-        core.play(clip)
+        core.play(constantClip(level.toShort(), 40_000))
+        core.play(constantClip(level.toShort(), 40_000))
         render(core, 2000)
-        core.restart(clip)
+        core.playAlone(ShortArray(40_000)) // a silent clip, so only the fade of the others is heard
         assertEquals(1, core.activeVoiceCount)
         val out = render(core, 1000)
-        val start = level / 32768f
+        val start = 2f * level / 32768f
         var previous = start
         for (i in latency until out.size) {
             assertTrue("fade must not rise at $i", out[i] <= previous + 1e-6f)

@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
 class MixerEngine(private val core: MixerCore = MixerCore()) {
     private val triggers = ConcurrentLinkedQueue<ShortArray>()
     private val stops = ConcurrentLinkedQueue<ShortArray>()
-    private val restarts = ConcurrentLinkedQueue<ShortArray>()
+    private val solos = ConcurrentLinkedQueue<ShortArray>()
     private val lock = Any()
     private var thread: Thread? = null
 
@@ -47,7 +47,7 @@ class MixerEngine(private val core: MixerCore = MixerCore()) {
             }
             triggers.clear()
             stops.clear()
-            restarts.clear()
+            solos.clear()
             core.clear()
             val run = Run()
             currentRun = run
@@ -69,7 +69,7 @@ class MixerEngine(private val core: MixerCore = MixerCore()) {
         }
         triggers.clear()
         stops.clear()
-        restarts.clear()
+        solos.clear()
     }
 
     /** Starts a new voice for [clip] on top of whatever is playing. Ignored while stopped. */
@@ -82,9 +82,9 @@ class MixerEngine(private val core: MixerCore = MixerCore()) {
         if (currentRun?.active == true) stops.offer(clip)
     }
 
-    /** Fades out the voices playing this exact [clip] instance and plays it again (a button tap). */
-    fun restart(clip: ShortArray) {
-        if (currentRun?.active == true) restarts.offer(clip)
+    /** Fades out everything playing, then plays [clip] alone (a button tap on the board). */
+    fun playAlone(clip: ShortArray) {
+        if (currentRun?.active == true) solos.offer(clip)
     }
 
     private fun buildTrack(): AudioTrack {
@@ -132,10 +132,10 @@ class MixerEngine(private val core: MixerCore = MixerCore()) {
                     val clip = stops.poll() ?: break
                     core.stop(clip)
                 }
-                // Last, so a restart always ends with its clip playing.
+                // Last, so a solo always ends with its clip playing.
                 while (true) {
-                    val clip = restarts.poll() ?: break
-                    core.restart(clip)
+                    val clip = solos.poll() ?: break
+                    core.playAlone(clip)
                 }
                 core.render(buffer, buffer.size)
                 if (track.write(buffer, 0, buffer.size, AudioTrack.WRITE_BLOCKING) < 0) break

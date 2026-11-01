@@ -66,26 +66,27 @@ class MixerCore(
 
     /**
      * Fades out (about 5 ms, like a steal) every voice playing this exact [clip] instance. Used by
-     * the melody editor's Stop and by [restart].
+     * the melody editor's Stop.
      */
     fun stop(clip: ShortArray) {
-        for (v in voices) {
-            if (v.clip !== clip) continue
-            v.tailClip = clip
-            v.tailPos = v.pos
-            v.tailLeft = stealFadeFrames
-            v.clip = null
-            activeVoiceCount--
-        }
+        for (v in voices) if (v.clip === clip) fadeOut(v)
     }
 
     /**
-     * Fades out the voices playing this exact [clip] instance, then starts it again from the
-     * beginning: a button tapped again restarts instead of overlapping itself.
+     * Fades out every voice, then plays [clip] from the beginning: a button tap on the board plays
+     * alone, cutting whatever was playing.
      */
-    fun restart(clip: ShortArray) {
-        stop(clip)
+    fun playAlone(clip: ShortArray) {
+        for (v in voices) if (v.clip != null) fadeOut(v)
         play(clip)
+    }
+
+    private fun fadeOut(v: Voice) {
+        v.tailClip = v.clip
+        v.tailPos = v.pos
+        v.tailLeft = stealFadeFrames
+        v.clip = null
+        activeVoiceCount--
     }
 
     /** Renders [frames] mono samples into [out] (overwritten). */
